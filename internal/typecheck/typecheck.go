@@ -25,6 +25,8 @@ func Check(prog *ast.Program) []Error {
 	c := &checker{
 		structs:  map[string]map[string]bool{},
 		entities: map[string]map[string]string{},
+		enums:    map[string]map[string]bool{},
+		consts:   map[string]bool{},
 	}
 	c.collectDecls(prog)
 	c.detectAppRaylib(prog)
@@ -42,8 +44,11 @@ type checker struct {
 	scopes     []map[string]string
 	structs    map[string]map[string]bool
 	entities   map[string]map[string]string
+	enums      map[string]map[string]bool
+	consts     map[string]bool
 	fns        map[string]bool
 	modules      map[string]bool
+	qualifiedImports map[string]bool
 	usingMods    []string
 	useWhitelist map[string]map[string]bool
 	usesRaylib   bool
@@ -62,6 +67,7 @@ func (c *checker) collectDecls(prog *ast.Program) {
 	c.globals = map[string]string{}
 	c.fns = map[string]bool{}
 	c.modules = map[string]bool{}
+	c.qualifiedImports = map[string]bool{}
 	for _, node := range prog.Stmts {
 		switch n := node.(type) {
 		case *ast.StructDecl:
@@ -91,11 +97,33 @@ func (c *checker) collectDecls(prog *ast.Program) {
 			if n.Name != "" {
 				c.fns[n.Name] = true
 			}
+		case *ast.EnumDecl:
+			variants := map[string]bool{}
+			for _, v := range n.Variants {
+				variants[v] = true
+			}
+			c.enums[n.Name] = variants
+		case *ast.ConstDecl:
+			c.consts[n.Name] = true
+			t := "int"
+			if n.TypeHint != nil {
+				t = typeName(n.TypeHint)
+			}
+			c.globals[n.Name] = t
 		case *ast.UseStmt:
 			if n.Path == "raylib" || n.Path == "graphics" {
 				c.usesRaylib = true
 			}
 			c.registerUseWhitelist(n.Path, n.Symbols)
+			if n.QualifiedOnly {
+				c.qualifiedImports[n.Path] = true
+				if n.Alias != "" {
+					c.modules[n.Alias] = true
+				} else {
+					c.modules[n.Path] = true
+				}
+				break
+			}
 			if n.Alias != "" {
 				c.modules[n.Alias] = true
 			} else {
@@ -200,7 +228,14 @@ func (c *checker) checkNode(node ast.Node) {
 	switch n := node.(type) {
 	case *ast.LetStmt:
 		c.checkLet(n)
+	case *ast.ConstDecl:
+		c.checkConstDecl(n)
 	case *ast.AssignStmt:
+		if id, ok := n.Target.(*ast.Ident); ok && c.consts[id.Name] {
+			c.errorAtHint(n.Pos(),
+				fmt.Sprintf("cannot assign to const %q", id.Name),
+				"declare a new let binding instead")
+		}
 		c.checkDrawMutation(n)
 		c.checkPerFrameAllocation(n)
 		c.checkExpr(n.Target)
@@ -256,10 +291,17 @@ func (c *checker) checkNode(node ast.Node) {
 		c.loopDepth--
 	case *ast.MatchStmt:
 		c.checkExpr(n.Value)
+		matchType := c.inferMatchValueType(n.Value)
 		for _, arm := range n.Arms {
 			c.pushScope()
 			if pat, ok := arm.Pattern.(*ast.StructLit); ok && pat.IsPattern {
 				c.bindStructPattern(pat)
+			} else if pat, ok := arm.Pattern.(*ast.Ident); ok && pat.Name != "_" {
+				if c.checkMatchEnumPattern(matchType, pat) {
+					// enum variant arm — no bindings
+				} else {
+					c.checkExpr(arm.Pattern)
+				}
 			} else {
 				c.checkExpr(arm.Pattern)
 			}
@@ -460,6 +502,12 @@ func (c *checker) checkExpr(node ast.Node) {
 					"add it to the use raylib { ... } list")
 				return
 			}
+			if c.requiresQualifiedRaylib(n.Name) {
+				c.errorAtHint(n.Pos(),
+					fmt.Sprintf("symbol %q is not in scope", n.Name),
+					fmt.Sprintf("use raylib.%s or switch to use raylib;", n.Name))
+				return
+			}
 			return
 		}
 		if _, ok := c.lookup(n.Name); !ok {
@@ -573,7 +621,23 @@ func (c *checker) checkNamespaceCall(ns, method string, call *ast.CallExpr) {
 
 func (c *checker) checkField(f *ast.FieldExpr) {
 	if ident, ok := f.Object.(*ast.Ident); ok {
+		if c.enums != nil {
+			if variants, ok := c.enums[ident.Name]; ok {
+				if !variants[f.Field] {
+					c.errorAt(f.Pos(), "enum %s has no variant %q", ident.Name, f.Field)
+				}
+				return
+			}
+		}
 		if c.modules[ident.Name] {
+			if c.usesRaylib && (ident.Name == "raylib" || ident.Name == "graphics") {
+				path := c.importPathFor(ident.Name)
+				if wl, ok := c.useWhitelist[path]; ok && wl != nil && !wl[f.Field] {
+					c.errorAtHint(f.Pos(),
+						fmt.Sprintf("symbol %q is not imported", f.Field),
+						"add it to the import/use list")
+				}
+			}
 			return
 		}
 		if namespaceRoots[ident.Name] {
@@ -792,6 +856,11 @@ func (c *checker) inferType(node ast.Node) string {
 		return n.Entity + "_Entity*"
 	case *ast.FieldExpr:
 		if ident, ok := n.Object.(*ast.Ident); ok {
+			if c.enums != nil {
+				if variants, ok := c.enums[ident.Name]; ok && variants[n.Field] {
+					return ident.Name
+				}
+			}
 			if typ, ok := c.lookup(ident.Name); ok {
 				if strings.HasSuffix(typ, "_Entity*") {
 					entityName := strings.TrimSuffix(typ, "_Entity*")

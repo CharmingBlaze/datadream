@@ -1,0 +1,38 @@
+// Language feature showcase — const, enum, indexed for-in, enum match
+use raylib;
+
+enum GameState {
+    Idle,
+    Run,
+}
+
+const MAX_SCORE = 100;
+
+fn main() {
+    InitWindow(400, 300, "DataDream language features");
+    defer CloseWindow();
+
+    let phase: GameState = GameState.Idle;
+    let nums: Array<int>;
+    nums.push(10);
+    nums.push(20);
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        let sum = 0;
+        for i, n in nums {
+            sum = sum + n;
+        }
+
+        match phase {
+            Idle => { phase = GameState.Run; }
+            Run => { phase = GameState.Idle; }
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText(TextFormat("sum=%d max=%d", sum, MAX_SCORE), 10, 10, 20, BLACK);
+        EndDrawing();
+    }
+}

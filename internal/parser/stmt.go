@@ -23,6 +23,8 @@ func (p *Parser) parseStatement() ast.Node {
 	switch p.peek().Type {
 	case lexer.TOKEN_LET:
 		return p.parseLet()
+	case lexer.TOKEN_CONST:
+		return p.parseConst()
 	case lexer.TOKEN_RETURN:
 		return p.parseReturn()
 	case lexer.TOKEN_IF:

@@ -63,6 +63,8 @@ func (p *Parser) parseTopLevel() ast.Node {
 		return p.parseWindow()
 	case lexer.TOKEN_USE:
 		return p.parseUse()
+	case lexer.TOKEN_IMPORT:
+		return p.parseImport()
 	case lexer.TOKEN_USING:
 		return p.parseUsing()
 	case lexer.TOKEN_MODULE:
@@ -95,6 +97,8 @@ func (p *Parser) parseTopLevel() ast.Node {
 		return p.parseSystem()
 	case lexer.TOKEN_ENUM:
 		return p.parseEnum()
+	case lexer.TOKEN_CONST:
+		return p.parseConst()
 	case lexer.TOKEN_LET:
 		return p.parseLet()
 	case lexer.TOKEN_STATE:

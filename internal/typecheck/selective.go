@@ -77,6 +77,21 @@ func (c *checker) importPathFor(name string) string {
 	return name
 }
 
+func (c *checker) requiresQualifiedRaylib(name string) bool {
+	if len(c.usingMods) > 0 {
+		return false
+	}
+	for path := range c.qualifiedImports {
+		if path != "raylib" && path != "graphics" {
+			continue
+		}
+		if isRaylibSymbol(name) || isRaylibConstant(name) {
+			return true
+		}
+	}
+	return false
+}
+
 func isRaylibConstant(name string) bool {
 	if name == "" {
 		return false

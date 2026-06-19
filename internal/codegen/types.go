@@ -30,6 +30,10 @@ func (g *Generator) typeToC(t *ast.TypeExpr) string {
 		"sprite":  "Sprite",
 		"any":     "void*",
 		"cstring": "const char*",
+		"voidptr": "void*",
+		"ptr":     "", // handled below with params
+		"usize":   "size_t",
+		"isize":   "ptrdiff_t",
 		"f32":     "float",
 		"f64":     "double",
 		"u8":      "unsigned char",
@@ -49,6 +53,10 @@ func (g *Generator) typeToC(t *ast.TypeExpr) string {
 			return c + "*"
 		}
 		return c
+	}
+	if t.Name == "ptr" && len(t.Params) == 1 {
+		inner := g.typeToC(t.Params[0])
+		return inner + "*"
 	}
 	if g.usesRaylib {
 		if c, ok := raylibTypeName(t.Name); ok {

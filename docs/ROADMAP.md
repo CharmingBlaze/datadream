@@ -201,7 +201,7 @@ Ship when **all** are true:
 | P0.5 | `verify-dist` Studio binary check | ❌ |
 | P2 | Parser/lexer hint edge cases | 🟡 |
 | P4 | LSP (hover, go-to-def) | ❌ |
-| P5 | `match` type patterns (beyond struct fields) | ❌ |
+| P5 | `match` enum / type patterns | ✅ enum variants |
 
 ---
 

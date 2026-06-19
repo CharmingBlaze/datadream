@@ -1,0 +1,15 @@
+// import — qualified module access (raylib.Symbol, not bare Symbol)
+import raylib { InitWindow, CloseWindow, WindowShouldClose, BeginDrawing, EndDrawing, ClearBackground, DrawText, RAYWHITE, BLACK, TextFormat };
+
+fn main() {
+    raylib.InitWindow(400, 300, "import demo");
+    defer raylib.CloseWindow();
+
+    loop {
+        if raylib.WindowShouldClose() { break; }
+        raylib.BeginDrawing();
+        raylib.ClearBackground(raylib.RAYWHITE);
+        raylib.DrawText("import raylib { ... }", 10, 10, 20, raylib.BLACK);
+        raylib.EndDrawing();
+    }
+}

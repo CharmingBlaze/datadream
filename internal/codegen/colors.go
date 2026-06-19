@@ -29,6 +29,12 @@ func (g *Generator) genFieldExpr(f *ast.FieldExpr) {
 		g.emit("self->%s", f.Field)
 		return
 	}
+	if ident, ok := f.Object.(*ast.Ident); ok && g.enums != nil {
+		if variants, ok := g.enums[ident.Name]; ok && variants[f.Field] {
+			g.emit("%s_%s", ident.Name, f.Field)
+			return
+		}
+	}
 	if ident, ok := f.Object.(*ast.Ident); ok && g.isImportedModule(ident.Name) {
 		g.emit("%s", f.Field)
 		return

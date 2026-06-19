@@ -28,7 +28,33 @@ func (p *Parser) parseUse() *ast.UseStmt {
 		alias = p.expectIdent()
 	}
 	p.eatSemi()
-	return ast.NewUseStmt(path, alias, symbols, pos)
+	return ast.NewUseStmt(path, alias, symbols, false, pos)
+}
+
+func (p *Parser) parseImport() *ast.UseStmt {
+	pos := p.pos0()
+	p.advance() // import
+	path := p.parseQualifiedName()
+	var symbols []string
+	if p.check(lexer.TOKEN_LBRACE) {
+		p.advance()
+		for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
+			symbols = append(symbols, p.expectIdent())
+			if p.check(lexer.TOKEN_COMMA) {
+				p.advance()
+			} else if !p.check(lexer.TOKEN_RBRACE) {
+				p.errorAt(p.peek(), "expected ',' between import symbols")
+			}
+		}
+		p.expect(lexer.TOKEN_RBRACE)
+	}
+	alias := ""
+	if p.check(lexer.TOKEN_AS) {
+		p.advance()
+		alias = p.expectIdent()
+	}
+	p.eatSemi()
+	return ast.NewUseStmt(path, alias, symbols, true, pos)
 }
 
 func (p *Parser) parseUsing() *ast.UsingStmt {

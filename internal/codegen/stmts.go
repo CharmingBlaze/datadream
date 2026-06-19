@@ -341,6 +341,18 @@ func (g *Generator) genMatch(m *ast.MatchStmt) {
 
 	first := true
 	for _, arm := range m.Arms {
+		if cName, ok := g.resolveEnumVariantArm(m, arm.Pattern); ok {
+			if first {
+				g.iemit("if (%s == %s) {\n", valRef, cName)
+				first = false
+			} else {
+				g.iemit("} else if (%s == %s) {\n", valRef, cName)
+			}
+			g.indent++
+			g.genStmts(arm.Body)
+			g.indent--
+			continue
+		}
 		if pat, ok := arm.Pattern.(*ast.StructLit); ok && pat.IsPattern {
 			g.genStructMatchArm(first, valRef, pat, arm.Body)
 			first = false
@@ -418,6 +430,36 @@ func (g *Generator) structPatternConditions(valRef string, pat *ast.StructLit) s
 		return "1"
 	}
 	return strings.Join(parts, " && ")
+}
+
+func (g *Generator) resolveEnumVariantArm(m *ast.MatchStmt, pat ast.Node) (string, bool) {
+	ident, ok := pat.(*ast.Ident)
+	if !ok || ident.Name == "_" || g.enums == nil {
+		return "", false
+	}
+	enumType := ""
+	if id, ok := m.Value.(*ast.Ident); ok && g.varTypes != nil {
+		if t, ok := g.varTypes[id.Name]; ok {
+			if _, isEnum := g.enums[t]; isEnum {
+				enumType = t
+			}
+		}
+	}
+	if enumType != "" && g.enums[enumType][ident.Name] {
+		return enumType + "_" + ident.Name, true
+	}
+	found := ""
+	count := 0
+	for en, vars := range g.enums {
+		if vars[ident.Name] {
+			count++
+			found = en + "_" + ident.Name
+		}
+	}
+	if count == 1 {
+		return found, true
+	}
+	return "", false
 }
 
 func (g *Generator) genOnEvent(o *ast.OnEventStmt) {

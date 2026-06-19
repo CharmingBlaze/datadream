@@ -166,10 +166,10 @@ Type patterns and full `@`-attribute ECS layout are planned.
 | Keyword | Purpose | Layer | Status |
 |---------|---------|-------|--------|
 | `let` | mutable binding (inferred or typed) | 1 | ✅ |
-| `const` | immutable binding | 1 | 🟡 |
+| `const` | immutable binding | 1 | ✅ |
 | `fn` | function | 1 | ✅ |
 | `struct` | user struct | 1 | ✅ |
-| `enum` | enumeration | 1 | 🟡 |
+| `enum` | enumeration | 1 | ✅ |
 | `@save` | struct attribute — binary serialize/deserialize via `fwrite`/`fread` | 1 | ✅ |
 | `@packed` | entity attribute — struct-of-arrays pool (`EntityPool` + `idx` handle) | 5 | ✅ |
 | `return` | return from function | 1 | ✅ |
@@ -197,7 +197,7 @@ fn add(a: int, b: int) -> int {
 | `f32` `f64` | exact floats | 1 | ✅ |
 | `usize` `isize` | pointer-sized integers | 1 | ✅ |
 | `cstring` | C string pointer | 2 | ✅ |
-| `voidptr` `ptr<T>` | raw pointers | 2 | 🟡 |
+| `voidptr` `ptr<T>` | raw pointers | 2 | ✅ |
 | `void` | no return | 1 | ✅ |
 
 Raylib C types (`Vector2`, `Camera3D`, `Color`, …) are used via `use raylib;` or struct literals.
@@ -215,7 +215,7 @@ Raylib C types (`Vector2`, `Camera3D`, `Color`, …) are used via `use raylib;` 
 | `module` | declare module | 🟡 |
 | `include` | textual include of another `.dd` file | ✅ |
 | `export` | mark module `fn` / `let` as public API | ✅ |
-| `import` | module-only access (planned) | ❌ |
+| `import` | module-only access (`raylib.InitWindow`) | ✅ |
 | `extern` | foreign declarations | ✅ |
 | `c` | C ABI marker in `extern c { }` | ✅ |
 | `link` | link library name in extern block | ✅ |

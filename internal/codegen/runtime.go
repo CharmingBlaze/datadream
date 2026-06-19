@@ -138,6 +138,15 @@ func (g *Generator) collectDecls(prog *ast.Program) {
 				fields[f.Name] = t
 			}
 			g.entityFields[n.Name] = fields
+		case *ast.EnumDecl:
+			if g.enums == nil {
+				g.enums = map[string]map[string]bool{}
+			}
+			variants := map[string]bool{}
+			for _, v := range n.Variants {
+				variants[v] = true
+			}
+			g.enums[n.Name] = variants
 		}
 	}
 }

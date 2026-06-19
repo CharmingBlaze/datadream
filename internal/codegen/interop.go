@@ -31,7 +31,7 @@ func (g *Generator) genUseStmt(u *ast.UseStmt) {
 	}
 
 	// Plain `use raylib` (no alias) brings API names into file scope.
-	if u.Alias == "" {
+	if !u.QualifiedOnly && u.Alias == "" {
 		g.usingMods = append(g.usingMods, u.Path)
 	}
 }

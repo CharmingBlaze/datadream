@@ -14,7 +14,7 @@ DataDream is a **Go compiler** that turns `.dd` source into **C**, then links wi
 
 **Primary blocker for v1.0 ship:** publish the GitHub Release — workflow is ready; maintainer runs [PUBLISH.md](PUBLISH.md) and verifies Studio launchers in each zip.
 
-**Primary gaps (post-ship):** LSP, automated Studio smoke test in `verify-dist`, README quick start still CLI-first.
+**Primary gaps (post-ship):** LSP, automated Studio smoke test in `verify-dist`, README quick start still CLI-first. Language v1 surface is complete (const, enum, import, enum match, indexed for-in, ptr types).
 
 ---
 
@@ -125,9 +125,16 @@ Key files: `internal/ast/ast.go` (`IterKind`), `internal/typecheck/forin.go`, `i
 
 ### Raw raylib (Layer 2)
 - ✅ `use raylib;` + `libs/raylib/raw.dd` (~548 functions)
-- ✅ **Selective import** — `use raylib { InitWindow, DrawText };` (`hello_selective.dd`, `typecheck/selective.go`)
+- ✅ Selective **`use raylib { InitWindow, DrawText };`** (`hello_selective.dd`)
+- ✅ **`import raylib { … }`** — qualified-only access (`import_demo.dd`)
 - ✅ `datadream bind` from headers
 - ✅ `hello_raw.dd`, `hello_using.dd`, **`hello_3d.dd`**, **`hello_selective.dd`**
+
+### Language completeness (Layer 1)
+- ✅ **`const` bindings** — top-level and block scope; reassignment rejected
+- ✅ **`enum` + `Type.Variant` + enum `match` arms** (`language_features.dd`)
+- ✅ **`for i, x in array`** — index + value iteration
+- ✅ **`ptr<T>` / `voidptr`** — C pointer types in codegen
 
 ### Friendly API (Layer 4)
 | Namespace | Codegen |
@@ -169,7 +176,7 @@ Living reference: `examples/raylib/commands.dd`.
 
 ---
 
-## Examples (25 `.dd` files)
+## Examples (27 `.dd` files)
 
 All core examples pass `datadream check --codegen`. CI builds on Linux + macOS.
 
@@ -196,6 +203,8 @@ examples/raylib/hello_friendly.dd
 examples/raylib/hello_raw.dd
 examples/raylib/hello_selective.dd
 examples/raylib/hello_using.dd
+examples/raylib/import_demo.dd
+examples/raylib/language_features.dd
 examples/raylib/match_destruct.dd
 examples/raylib/string_for_in.dd
 examples/raylib/ui_demo.dd

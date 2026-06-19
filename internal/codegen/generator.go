@@ -18,6 +18,7 @@ type Generator struct {
 	entityFields map[string]map[string]string
 	structMethods map[string]map[string]bool
 	entityMethods map[string]map[string]bool
+	enums         map[string]map[string]bool
 	// C interop
 	imports   map[string]string
 	useWhitelist map[string]map[string]bool // module path -> allowed symbols (nil map = all)
