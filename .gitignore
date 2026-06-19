@@ -1,0 +1,26 @@
+# Built artifacts
+datadream
+datadream.exe
+*.exe
+*.pdb
+dist/
+coin-runner.exe
+hello.exe
+
+# Bundled SDK (install via datadream sdk install)
+sdk/toolchain/clang/
+sdk/raylib/*/lib/
+
+# Go
+*.test
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temp
+tmp_debug.go

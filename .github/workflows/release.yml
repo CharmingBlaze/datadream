@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_clang:
+        description: "Skip bundling Clang in zip (smaller artifact)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      skip_verify:
+        description: "Skip packdist verify (doctor + hello + coin-runner in zip tree)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  release-windows:
+    name: Release zip (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build distribution
+        shell: pwsh
+        run: |
+          $args = @()
+          if ('${{ inputs.skip_clang }}' -eq 'true') { $args += '-SkipClang' }
+          if ('${{ inputs.skip_verify }}' -eq 'true') { $args += '-SkipVerify' }
+          .\scripts\build-dist.ps1 @args
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: datadream-windows-amd64
+          path: dist/datadream-windows-amd64.zip
+
+  release-linux:
+    name: Release zip (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang libx11-dev libxrandr-dev libxi-dev libxcursor-dev libgl1-mesa-dev
+      - name: Build distribution
+        run: |
+          ARGS=""
+          if [ "${{ inputs.skip_clang }}" = "true" ]; then ARGS="$ARGS --skip-clang"; fi
+          if [ "${{ inputs.skip_verify }}" = "true" ]; then ARGS="$ARGS --skip-verify"; fi
+          ./scripts/build-dist.sh $ARGS
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: datadream-linux-amd64
+          path: dist/datadream-linux-amd64.zip
+
+  release-macos:
+    name: Release zip (macOS arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build distribution
+        run: |
+          ARGS=""
+          if [ "${{ inputs.skip_clang }}" = "true" ]; then ARGS="$ARGS --skip-clang"; fi
+          if [ "${{ inputs.skip_verify }}" = "true" ]; then ARGS="$ARGS --skip-verify"; fi
+          ./scripts/build-dist.sh $ARGS
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: datadream-darwin-arm64
+          path: dist/datadream-darwin-arm64.zip

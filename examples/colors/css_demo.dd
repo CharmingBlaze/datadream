@@ -1,0 +1,24 @@
+// CSS named colors demo
+
+use raylib;
+
+fn main() {
+    InitWindow(800, 600, "DataDream CSS Colors");
+    SetTargetFPS(60);
+
+    while !WindowShouldClose() {
+        BeginDrawing();
+
+        ClearBackground(colors.rebeccaPurple);
+
+        DrawText("CSS named colors work", 20, 20, 24, colors.aliceBlue);
+
+        DrawRectangle(20, 80, 200, 80, colors.mediumSeaGreen);
+        DrawRectangle(20, 180, 200, 80, css("cornflowerblue"));
+        DrawRectangle(20, 280, 200, 80, css("rgba(255, 99, 71, 0.5)"));
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+}

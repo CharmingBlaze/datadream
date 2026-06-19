@@ -1,0 +1,1795 @@
+// Raw C bindings for raylib
+// Generated from: raylib.h
+// datadream bind raylib.h --module raylib --raw
+
+module raylib;
+
+extern c {
+    link "raylib";
+
+    // ── Types ──
+
+    struct Vector2 {
+        x: float;
+        y: float;
+    }
+
+    struct Vector3 {
+        x: float;
+        y: float;
+        z: float;
+    }
+
+    struct Vector4 {
+        x: float;
+        y: float;
+        z: float;
+        w: float;
+    }
+
+    struct Matrix {
+        m0: float;
+        m4: float;
+        m8: float;
+        m12: float;
+        m1: float;
+        m5: float;
+        m9: float;
+        m13: float;
+        m2: float;
+        m6: float;
+        m10: float;
+        m14: float;
+        m3: float;
+        m7: float;
+        m11: float;
+        m15: float;
+    }
+
+    // Some Basic
+    struct Color {
+        r: u8;
+        g: u8;
+        b: u8;
+        a: u8;
+    }
+
+    struct Rectangle {
+        x: float;
+        y: float;
+        width: float;
+        height: float;
+    }
+
+    struct Image {
+        data: void?;
+        width: int;
+        height: int;
+        mipmaps: int;
+        format: int;
+    }
+
+    struct Texture {
+        id: int;
+        width: int;
+        height: int;
+        mipmaps: int;
+        format: int;
+    }
+
+    struct RenderTexture {
+        id: int;
+        texture: Texture;
+        depth: Texture;
+    }
+
+    struct NPatchInfo {
+        source: Rect;
+        left: int;
+        top: int;
+        right: int;
+        bottom: int;
+        layout: int;
+    }
+
+    struct GlyphInfo {
+        value: int;
+        offsetX: int;
+        offsetY: int;
+        advanceX: int;
+        image: Image;
+    }
+
+    struct Font {
+        baseSize: int;
+        glyphCount: int;
+        glyphPadding: int;
+        texture: Texture;
+        recs: Rect?;
+        glyphs: GlyphInfo?;
+    }
+
+    struct Camera3D {
+        position: Vec3;
+        target: Vec3;
+        up: Vec3;
+        fovy: float;
+        projection: int;
+    }
+
+    struct Camera2D {
+        offset: Vec2;
+        target: Vec2;
+        rotation: float;
+        zoom: float;
+    }
+
+    struct Mesh {
+        vertexCount: int;
+        triangleCount: int;
+        vertices: float?;
+        texcoords: float?;
+        texcoords2: float?;
+        normals: float?;
+        tangents: float?;
+        colors: u8?;
+        indices: int?;
+        boneCount: int;
+        boneIndices: u8?;
+        boneWeights: float?;
+        animVertices: float?;
+        animNormals: float?;
+        vaoId: int;
+        vboId: int?;
+    }
+
+    struct Shader {
+        id: int;
+        locs: int?;
+    }
+
+    struct MaterialMap {
+        texture: Texture;
+        color: Color;
+        value: float;
+    }
+
+    struct Material {
+        shader: Shader;
+        maps: MaterialMap?;
+        params: float[];
+    }
+
+    struct Transform {
+        translation: Vec3;
+        rotation: Quaternion;
+        scale: Vec3;
+    }
+
+    struct BoneInfo {
+        name: char[];
+        parent: int;
+    }
+
+    struct ModelSkeleton {
+        boneCount: int;
+        bones: BoneInfo?;
+        bindPose: ModelAnimPose;
+    }
+
+    struct Model {
+        transform: Mat4;
+        meshCount: int;
+        materialCount: int;
+        meshes: Mesh?;
+        materials: Material?;
+        meshMaterial: int?;
+        skeleton: ModelSkeleton;
+        currentPose: ModelAnimPose;
+        boneMatrices: Mat4?;
+    }
+
+    struct ModelAnimation {
+        name: char[];
+        boneCount: int;
+        keyframeCount: int;
+        keyframePoses: ModelAnimPose?;
+    }
+
+    struct Ray {
+        position: Vec3;
+        direction: Vec3;
+    }
+
+    struct RayCollision {
+        hit: bool;
+        distance: float;
+        point: Vec3;
+        normal: Vec3;
+    }
+
+    struct BoundingBox {
+        min: Vec3;
+        max: Vec3;
+    }
+
+    struct Wave {
+        frameCount: int;
+        sampleRate: int;
+        sampleSize: int;
+        channels: int;
+        data: void?;
+    }
+
+    struct AudioStream {
+        buffer: rAudioBuffer?;
+        processor: rAudioProcessor?;
+        sampleRate: int;
+        sampleSize: int;
+        channels: int;
+    }
+
+    struct Sound {
+        stream: AudioStream;
+        frameCount: int;
+    }
+
+    struct Music {
+        stream: AudioStream;
+        frameCount: int;
+        looping: bool;
+        ctxType: int;
+        ctxData: void?;
+    }
+
+    struct VrDeviceInfo {
+        hResolution: int;
+        vResolution: int;
+        hScreenSize: float;
+        vScreenSize: float;
+        eyeToScreenDistance: float;
+        lensSeparationDistance: float;
+        interpupillaryDistance: float;
+        lensDistortionValues: float[];
+        chromaAbCorrection: float[];
+    }
+
+    struct VrStereoConfig {
+        projection: Matrix[];
+        viewOffset: Matrix[];
+        leftLensCenter: float[];
+        rightLensCenter: float[];
+        leftScreenCenter: float[];
+        rightScreenCenter: float[];
+        scale: float[];
+        scaleIn: float[];
+    }
+
+    struct FilePathList {
+        count: int;
+        paths: cstring?;
+    }
+
+    struct AutomationEvent {
+        frame: int;
+        type: int;
+        params: int[];
+    }
+
+    struct AutomationEventList {
+        capacity: int;
+        count: int;
+        events: AutomationEvent?;
+    }
+
+    enum ConfigFlags {
+        FLAG_VSYNC_HINT = 0x00000040;
+        FLAG_FULLSCREEN_MODE = 0x00000002;
+        FLAG_WINDOW_RESIZABLE = 0x00000004;
+        FLAG_WINDOW_UNDECORATED = 0x00000008;
+        FLAG_WINDOW_HIDDEN = 0x00000080;
+        FLAG_WINDOW_MINIMIZED = 0x00000200;
+        FLAG_WINDOW_MAXIMIZED = 0x00000400;
+        FLAG_WINDOW_UNFOCUSED = 0x00000800;
+        FLAG_WINDOW_TOPMOST = 0x00001000;
+        FLAG_WINDOW_ALWAYS_RUN = 0x00000100;
+        FLAG_WINDOW_TRANSPARENT = 0x00000010;
+        FLAG_WINDOW_HIGHDPI = 0x00002000;
+        FLAG_WINDOW_MOUSE_PASSTHROUGH = 0x00004000;
+        FLAG_BORDERLESS_WINDOWED_MODE = 0x00008000;
+        FLAG_MSAA_4X_HINT = 0x00000020;
+        FLAG_INTERLACED_HINT = 0x00010000;
+    }
+
+    enum TraceLogLevel {
+        LOG_ALL = 0;
+        LOG_TRACE;
+        LOG_DEBUG;
+        LOG_INFO;
+        LOG_WARNING;
+        LOG_ERROR;
+        LOG_FATAL;
+        LOG_NONE;
+    }
+
+    enum KeyboardKey {
+        KEY_NULL = 0;
+        KEY_APOSTROPHE = 39;
+        KEY_COMMA = 44;
+        KEY_MINUS = 45;
+        KEY_PERIOD = 46;
+        KEY_SLASH = 47;
+        KEY_ZERO = 48;
+        KEY_ONE = 49;
+        KEY_TWO = 50;
+        KEY_THREE = 51;
+        KEY_FOUR = 52;
+        KEY_FIVE = 53;
+        KEY_SIX = 54;
+        KEY_SEVEN = 55;
+        KEY_EIGHT = 56;
+        KEY_NINE = 57;
+        KEY_SEMICOLON = 59;
+        KEY_EQUAL = 61;
+        KEY_A = 65;
+        KEY_B = 66;
+        KEY_C = 67;
+        KEY_D = 68;
+        KEY_E = 69;
+        KEY_F = 70;
+        KEY_G = 71;
+        KEY_H = 72;
+        KEY_I = 73;
+        KEY_J = 74;
+        KEY_K = 75;
+        KEY_L = 76;
+        KEY_M = 77;
+        KEY_N = 78;
+        KEY_O = 79;
+        KEY_P = 80;
+        KEY_Q = 81;
+        KEY_R = 82;
+        KEY_S = 83;
+        KEY_T = 84;
+        KEY_U = 85;
+        KEY_V = 86;
+        KEY_W = 87;
+        KEY_X = 88;
+        KEY_Y = 89;
+        KEY_Z = 90;
+        KEY_LEFT_BRACKET = 91;
+        KEY_BACKSLASH = 92;
+        KEY_RIGHT_BRACKET = 93;
+        KEY_GRAVE = 96;
+        KEY_SPACE = 32;
+        KEY_ESCAPE = 256;
+        KEY_ENTER = 257;
+        KEY_TAB = 258;
+        KEY_BACKSPACE = 259;
+        KEY_INSERT = 260;
+        KEY_DELETE = 261;
+        KEY_RIGHT = 262;
+        KEY_LEFT = 263;
+        KEY_DOWN = 264;
+        KEY_UP = 265;
+        KEY_PAGE_UP = 266;
+        KEY_PAGE_DOWN = 267;
+        KEY_HOME = 268;
+        KEY_END = 269;
+        KEY_CAPS_LOCK = 280;
+        KEY_SCROLL_LOCK = 281;
+        KEY_NUM_LOCK = 282;
+        KEY_PRINT_SCREEN = 283;
+        KEY_PAUSE = 284;
+        KEY_F1 = 290;
+        KEY_F2 = 291;
+        KEY_F3 = 292;
+        KEY_F4 = 293;
+        KEY_F5 = 294;
+        KEY_F6 = 295;
+        KEY_F7 = 296;
+        KEY_F8 = 297;
+        KEY_F9 = 298;
+        KEY_F10 = 299;
+        KEY_F11 = 300;
+        KEY_F12 = 301;
+        KEY_LEFT_SHIFT = 340;
+        KEY_LEFT_CONTROL = 341;
+        KEY_LEFT_ALT = 342;
+        KEY_LEFT_SUPER = 343;
+        KEY_RIGHT_SHIFT = 344;
+        KEY_RIGHT_CONTROL = 345;
+        KEY_RIGHT_ALT = 346;
+        KEY_RIGHT_SUPER = 347;
+        KEY_KB_MENU = 348;
+        KEY_KP_0 = 320;
+        KEY_KP_1 = 321;
+        KEY_KP_2 = 322;
+        KEY_KP_3 = 323;
+        KEY_KP_4 = 324;
+        KEY_KP_5 = 325;
+        KEY_KP_6 = 326;
+        KEY_KP_7 = 327;
+        KEY_KP_8 = 328;
+        KEY_KP_9 = 329;
+        KEY_KP_DECIMAL = 330;
+        KEY_KP_DIVIDE = 331;
+        KEY_KP_MULTIPLY = 332;
+        KEY_KP_SUBTRACT = 333;
+        KEY_KP_ADD = 334;
+        KEY_KP_ENTER = 335;
+        KEY_KP_EQUAL = 336;
+        KEY_BACK = 4;
+        KEY_MENU = 5;
+        KEY_VOLUME_UP = 24;
+        KEY_VOLUME_DOWN = 25;
+    }
+
+    enum MouseButton {
+        MOUSE_BUTTON_LEFT = 0;
+        MOUSE_BUTTON_RIGHT = 1;
+        MOUSE_BUTTON_MIDDLE = 2;
+        MOUSE_BUTTON_SIDE = 3;
+        MOUSE_BUTTON_EXTRA = 4;
+        MOUSE_BUTTON_FORWARD = 5;
+        MOUSE_BUTTON_BACK = 6;
+    }
+
+    enum MouseCursor {
+        MOUSE_CURSOR_DEFAULT = 0;
+        MOUSE_CURSOR_ARROW = 1;
+        MOUSE_CURSOR_IBEAM = 2;
+        MOUSE_CURSOR_CROSSHAIR = 3;
+        MOUSE_CURSOR_POINTING_HAND = 4;
+        MOUSE_CURSOR_RESIZE_EW = 5;
+        MOUSE_CURSOR_RESIZE_NS = 6;
+        MOUSE_CURSOR_RESIZE_NWSE = 7;
+        MOUSE_CURSOR_RESIZE_NESW = 8;
+        MOUSE_CURSOR_RESIZE_ALL = 9;
+        MOUSE_CURSOR_NOT_ALLOWED = 10;
+    }
+
+    enum GamepadButton {
+        GAMEPAD_BUTTON_UNKNOWN = 0;
+        GAMEPAD_BUTTON_LEFT_FACE_UP;
+        GAMEPAD_BUTTON_LEFT_FACE_RIGHT;
+        GAMEPAD_BUTTON_LEFT_FACE_DOWN;
+        GAMEPAD_BUTTON_LEFT_FACE_LEFT;
+        GAMEPAD_BUTTON_RIGHT_FACE_UP;
+        GAMEPAD_BUTTON_RIGHT_FACE_RIGHT;
+        GAMEPAD_BUTTON_RIGHT_FACE_DOWN;
+        GAMEPAD_BUTTON_RIGHT_FACE_LEFT;
+        GAMEPAD_BUTTON_LEFT_TRIGGER_1;
+        GAMEPAD_BUTTON_LEFT_TRIGGER_2;
+        GAMEPAD_BUTTON_RIGHT_TRIGGER_1;
+        GAMEPAD_BUTTON_RIGHT_TRIGGER_2;
+        GAMEPAD_BUTTON_MIDDLE_LEFT;
+        GAMEPAD_BUTTON_MIDDLE;
+        GAMEPAD_BUTTON_MIDDLE_RIGHT;
+        GAMEPAD_BUTTON_LEFT_THUMB;
+        GAMEPAD_BUTTON_RIGHT_THUMB;
+    }
+
+    enum GamepadAxis {
+        GAMEPAD_AXIS_LEFT_X = 0;
+        GAMEPAD_AXIS_LEFT_Y = 1;
+        GAMEPAD_AXIS_RIGHT_X = 2;
+        GAMEPAD_AXIS_RIGHT_Y = 3;
+        GAMEPAD_AXIS_LEFT_TRIGGER = 4;
+        GAMEPAD_AXIS_RIGHT_TRIGGER = 5;
+    }
+
+    enum MaterialMapIndex {
+        MATERIAL_MAP_ALBEDO = 0;
+        MATERIAL_MAP_METALNESS;
+        MATERIAL_MAP_NORMAL;
+        MATERIAL_MAP_ROUGHNESS;
+        MATERIAL_MAP_OCCLUSION;
+        MATERIAL_MAP_EMISSION;
+        MATERIAL_MAP_HEIGHT;
+        MATERIAL_MAP_CUBEMAP;
+        MATERIAL_MAP_IRRADIANCE;
+        MATERIAL_MAP_PREFILTER;
+        MATERIAL_MAP_BRDF;
+    }
+
+    enum ShaderLocationIndex {
+        SHADER_LOC_VERTEX_POSITION = 0;
+        SHADER_LOC_VERTEX_TEXCOORD01;
+        SHADER_LOC_VERTEX_TEXCOORD02;
+        SHADER_LOC_VERTEX_NORMAL;
+        SHADER_LOC_VERTEX_TANGENT;
+        SHADER_LOC_VERTEX_COLOR;
+        SHADER_LOC_MATRIX_MVP;
+        SHADER_LOC_MATRIX_VIEW;
+        SHADER_LOC_MATRIX_PROJECTION;
+        SHADER_LOC_MATRIX_MODEL;
+        SHADER_LOC_MATRIX_NORMAL;
+        SHADER_LOC_VECTOR_VIEW;
+        SHADER_LOC_COLOR_DIFFUSE;
+        SHADER_LOC_COLOR_SPECULAR;
+        SHADER_LOC_COLOR_AMBIENT;
+        SHADER_LOC_MAP_ALBEDO;
+        SHADER_LOC_MAP_METALNESS;
+        SHADER_LOC_MAP_NORMAL;
+        SHADER_LOC_MAP_ROUGHNESS;
+        SHADER_LOC_MAP_OCCLUSION;
+        SHADER_LOC_MAP_EMISSION;
+        SHADER_LOC_MAP_HEIGHT;
+        SHADER_LOC_MAP_CUBEMAP;
+        SHADER_LOC_MAP_IRRADIANCE;
+        SHADER_LOC_MAP_PREFILTER;
+        SHADER_LOC_MAP_BRDF;
+        SHADER_LOC_VERTEX_BONEIDS;
+        SHADER_LOC_VERTEX_BONEWEIGHTS;
+        SHADER_LOC_MATRIX_BONETRANSFORMS;
+        SHADER_LOC_VERTEX_INSTANCETRANSFORM;
+    }
+
+    enum ShaderUniformDataType {
+        SHADER_UNIFORM_FLOAT = 0;
+        SHADER_UNIFORM_VEC2;
+        SHADER_UNIFORM_VEC3;
+        SHADER_UNIFORM_VEC4;
+        SHADER_UNIFORM_INT;
+        SHADER_UNIFORM_IVEC2;
+        SHADER_UNIFORM_IVEC3;
+        SHADER_UNIFORM_IVEC4;
+        SHADER_UNIFORM_UINT;
+        SHADER_UNIFORM_UIVEC2;
+        SHADER_UNIFORM_UIVEC3;
+        SHADER_UNIFORM_UIVEC4;
+        SHADER_UNIFORM_SAMPLER2D;
+    }
+
+    enum ShaderAttributeDataType {
+        SHADER_ATTRIB_FLOAT = 0;
+        SHADER_ATTRIB_VEC2;
+        SHADER_ATTRIB_VEC3;
+        SHADER_ATTRIB_VEC4;
+    }
+
+    enum PixelFormat {
+        Uncompressed_grayscale = 1;
+        Uncompressed_gray_alpha;
+        Uncompressed_r5g6b5;
+        Uncompressed_r8g8b8;
+        Uncompressed_r5g5b5a1;
+        Uncompressed_r4g4b4a4;
+        Uncompressed_r8g8b8a8;
+        Uncompressed_r32;
+        Uncompressed_r32g32b32;
+        Uncompressed_r32g32b32a32;
+        Uncompressed_r16;
+        Uncompressed_r16g16b16;
+        Uncompressed_r16g16b16a16;
+        Compressed_dxt1_rgb;
+        Compressed_dxt1_rgba;
+        Compressed_dxt3_rgba;
+        Compressed_dxt5_rgba;
+        Compressed_etc1_rgb;
+        Compressed_etc2_rgb;
+        Compressed_etc2_eac_rgba;
+        Compressed_pvrt_rgb;
+        Compressed_pvrt_rgba;
+        Compressed_astc_4x4_rgba;
+        Compressed_astc_8x8_rgba;
+    }
+
+    enum TextureFilter {
+        TEXTURE_FILTER_POINT = 0;
+        TEXTURE_FILTER_BILINEAR;
+        TEXTURE_FILTER_TRILINEAR;
+        TEXTURE_FILTER_ANISOTROPIC_4X;
+        TEXTURE_FILTER_ANISOTROPIC_8X;
+        TEXTURE_FILTER_ANISOTROPIC_16X;
+    }
+
+    enum TextureWrap {
+        TEXTURE_WRAP_REPEAT = 0;
+        TEXTURE_WRAP_CLAMP;
+        TEXTURE_WRAP_MIRROR_REPEAT;
+        TEXTURE_WRAP_MIRROR_CLAMP;
+    }
+
+    enum CubemapLayout {
+        CUBEMAP_LAYOUT_AUTO_DETECT = 0;
+        CUBEMAP_LAYOUT_LINE_VERTICAL;
+        CUBEMAP_LAYOUT_LINE_HORIZONTAL;
+        CUBEMAP_LAYOUT_CROSS_THREE_BY_FOUR;
+        CUBEMAP_LAYOUT_CROSS_FOUR_BY_THREE;
+    }
+
+    enum FontType {
+        FONT_DEFAULT = 0;
+        FONT_BITMAP;
+        FONT_SDF;
+    }
+
+    enum BlendMode {
+        BLEND_ALPHA = 0;
+        BLEND_ADDITIVE;
+        BLEND_MULTIPLIED;
+        BLEND_ADD_COLORS;
+        BLEND_SUBTRACT_COLORS;
+        BLEND_ALPHA_PREMULTIPLY;
+        BLEND_CUSTOM;
+        BLEND_CUSTOM_SEPARATE;
+    }
+
+    enum Gesture {
+        None = 0;
+        Tap = 1;
+        Doubletap = 2;
+        Hold = 4;
+        Drag = 8;
+        Swipe_right = 16;
+        Swipe_left = 32;
+        Swipe_up = 64;
+        Swipe_down = 128;
+        Pinch_in = 256;
+        Pinch_out = 512;
+    }
+
+    enum CameraMode {
+        CAMERA_CUSTOM = 0;
+        CAMERA_FREE;
+        CAMERA_ORBITAL;
+        CAMERA_FIRST_PERSON;
+        CAMERA_THIRD_PERSON;
+    }
+
+    enum CameraProjection {
+        CAMERA_PERSPECTIVE = 0;
+        CAMERA_ORTHOGRAPHIC;
+    }
+
+    enum NPatchLayout {
+        NPATCH_NINE_PATCH = 0;
+        NPATCH_THREE_PATCH_VERTICAL;
+        NPATCH_THREE_PATCH_HORIZONTAL;
+    }
+
+    // ── Constants ──
+
+    const RAYLIB_VERSION_MAJOR = 6;
+    const RAYLIB_VERSION_MINOR = 0;
+    const RAYLIB_VERSION_PATCH = 0;
+    const RAYLIB_VERSION = "6.0";
+    const DEG2RAD = (PI/180.0f);
+    const RAD2DEG = (180.0f/PI);
+    const MOUSE_LEFT_BUTTON = MOUSE_BUTTON_LEFT;
+    const MOUSE_RIGHT_BUTTON = MOUSE_BUTTON_RIGHT;
+    const MOUSE_MIDDLE_BUTTON = MOUSE_BUTTON_MIDDLE;
+    const MATERIAL_MAP_DIFFUSE = MATERIAL_MAP_ALBEDO;
+    const MATERIAL_MAP_SPECULAR = MATERIAL_MAP_METALNESS;
+    const SHADER_LOC_MAP_DIFFUSE = SHADER_LOC_MAP_ALBEDO;
+    const SHADER_LOC_MAP_SPECULAR = SHADER_LOC_MAP_METALNESS;
+
+    // ── Functions ──
+
+    // Audio
+
+    fn PauseAudioStream(stream: AudioStream);
+
+    fn PauseMusicStream(music: Music);
+
+    fn PauseSound(sound: Sound);
+
+    fn PlayAudioStream(stream: AudioStream);
+
+    fn PlayAutomationEvent(event: AutomationEvent);
+
+    fn PlayMusicStream(music: Music);
+
+    fn PlaySound(sound: Sound);
+
+    fn StopAudioStream(stream: AudioStream);
+
+    fn StopAutomationEventRecording();
+
+    fn StopMusicStream(music: Music);
+
+    fn StopSound(sound: Sound);
+
+    // Colors
+
+    fn ColorAlpha(color: Color, alpha: float) -> Color;
+
+    fn ColorAlphaBlend(dst: Color, src: Color, tint: Color) -> Color;
+
+    fn ColorBrightness(color: Color, factor: float) -> Color;
+
+    fn ColorContrast(color: Color, contrast: float) -> Color;
+
+    fn ColorFromHSV(hue: float, saturation: float, value: float) -> Color;
+
+    fn ColorFromNormalized(normalized: Vec4) -> Color;
+
+    fn ColorIsEqual(col1: Color, col2: Color) -> bool;
+
+    fn ColorLerp(color1: Color, color2: Color, factor: float) -> Color;
+
+    fn ColorNormalize(color: Color) -> Vec4;
+
+    fn ColorTint(color: Color, tint: Color) -> Color;
+
+    fn ColorToHSV(color: Color) -> Vec3;
+
+    fn ColorToInt(color: Color) -> int;
+
+    // Config
+
+    fn SetAudioStreamBufferSizeDefault(size: int);
+
+    fn SetAudioStreamCallback(stream: AudioStream, callback: AudioCallback);
+
+    fn SetAudioStreamPan(stream: AudioStream, pan: float);
+
+    fn SetAudioStreamPitch(stream: AudioStream, pitch: float);
+
+    fn SetAudioStreamVolume(stream: AudioStream, volume: float);
+
+    fn SetAutomationEventBaseFrame(frame: int);
+
+    fn SetAutomationEventList(list: AutomationEventList?);
+
+    fn SetClipboardText(text: cstring?);
+
+    fn SetConfigFlags(flags: int);
+
+    fn SetExitKey(key: int);
+
+    fn SetGamepadMappings(mappings: cstring?) -> int;
+
+    fn SetGamepadVibration(gamepad: int, leftMotor: float, rightMotor: float, duration: float);
+
+    fn SetGesturesEnabled(flags: int);
+
+    fn SetLoadFileDataCallback(callback: LoadFileDataCallback);
+
+    fn SetLoadFileTextCallback(callback: LoadFileTextCallback);
+
+    fn SetMasterVolume(volume: float);
+
+    fn SetMaterialTexture(material: Material?, mapType: int, texture: Texture);
+
+    fn SetModelMeshMaterial(model: Model?, meshId: int, materialId: int);
+
+    fn SetMouseCursor(cursor: int);
+
+    fn SetMouseOffset(offsetX: int, offsetY: int);
+
+    fn SetMousePosition(x: int, y: int);
+
+    fn SetMouseScale(scaleX: float, scaleY: float);
+
+    fn SetMusicPan(music: Music, pan: float);
+
+    fn SetMusicPitch(music: Music, pitch: float);
+
+    fn SetMusicVolume(music: Music, volume: float);
+
+    fn SetPixelColor(dstPtr: void?, color: Color, format: int);
+
+    fn SetRandomSeed(seed: int);
+
+    fn SetSaveFileDataCallback(callback: SaveFileDataCallback);
+
+    fn SetSaveFileTextCallback(callback: SaveFileTextCallback);
+
+    fn SetShaderValue(shader: Shader, locIndex: int, value: void?, uniformType: int);
+
+    fn SetShaderValueMatrix(shader: Shader, locIndex: int, mat: Mat4);
+
+    fn SetShaderValueTexture(shader: Shader, locIndex: int, texture: Texture);
+
+    fn SetShaderValueV(shader: Shader, locIndex: int, value: void?, uniformType: int, count: int);
+
+    fn SetShapesTexture(texture: Texture, source: Rect);
+
+    fn SetSoundPan(sound: Sound, pan: float);
+
+    fn SetSoundPitch(sound: Sound, pitch: float);
+
+    fn SetSoundVolume(sound: Sound, volume: float);
+
+    fn SetTargetFPS(fps: int);
+
+    fn SetTextLineSpacing(spacing: int);
+
+    fn SetTextureFilter(texture: Texture, filter: int);
+
+    fn SetTextureWrap(texture: Texture, wrap: int);
+
+    fn SetTraceLogCallback(callback: TraceLogCallback);
+
+    fn SetTraceLogLevel(logLevel: int);
+
+    fn SetWindowFocused();
+
+    fn SetWindowIcon(image: Image);
+
+    fn SetWindowIcons(images: Image?, count: int);
+
+    fn SetWindowMaxSize(width: int, height: int);
+
+    fn SetWindowMinSize(width: int, height: int);
+
+    fn SetWindowMonitor(monitor: int);
+
+    fn SetWindowOpacity(opacity: float);
+
+    fn SetWindowPosition(x: int, y: int);
+
+    fn SetWindowSize(width: int, height: int);
+
+    fn SetWindowState(flags: int);
+
+    fn SetWindowTitle(title: cstring?);
+
+    // Core
+
+    fn BeginBlendMode(mode: int);
+
+    fn BeginDrawing();
+
+    fn BeginMode2D(camera: Camera2D);
+
+    fn BeginMode3D(camera: Camera3D);
+
+    fn BeginScissorMode(x: int, y: int, width: int, height: int);
+
+    fn BeginShaderMode(shader: Shader);
+
+    fn BeginTextureMode(target: RenderTexture);
+
+    fn BeginVrStereoMode(config: VrStereoConfig);
+
+    fn CloseAudioDevice();
+
+    fn CloseWindow();
+
+    fn EndBlendMode();
+
+    fn EndDrawing();
+
+    fn EndMode2D();
+
+    fn EndMode3D();
+
+    fn EndScissorMode();
+
+    fn EndShaderMode();
+
+    fn EndTextureMode();
+
+    fn EndVrStereoMode();
+
+    fn InitAudioDevice();
+
+    fn InitWindow(width: int, height: int, title: cstring?);
+
+    // Drawing
+
+    fn DrawBillboard(camera: Camera3D, texture: Texture, position: Vec3, scale: float, tint: Color);
+
+    fn DrawBillboardPro(camera: Camera3D, texture: Texture, source: Rect, position: Vec3, up: Vec3, size: Vec2, origin: Vec2, rotation: float, tint: Color);
+
+    fn DrawBillboardRec(camera: Camera3D, texture: Texture, source: Rect, position: Vec3, size: Vec2, tint: Color);
+
+    fn DrawBoundingBox(box: BoundingBox, color: Color);
+
+    fn DrawCapsule(startPos: Vec3, endPos: Vec3, radius: float, slices: int, rings: int, color: Color);
+
+    fn DrawCapsuleWires(startPos: Vec3, endPos: Vec3, radius: float, slices: int, rings: int, color: Color);
+
+    fn DrawCircle(centerX: int, centerY: int, radius: float, color: Color);
+
+    fn DrawCircle3D(center: Vec3, radius: float, rotationAxis: Vec3, rotationAngle: float, color: Color);
+
+    fn DrawCircleGradient(center: Vec2, radius: float, inner: Color, outer: Color);
+
+    fn DrawCircleLines(centerX: int, centerY: int, radius: float, color: Color);
+
+    fn DrawCircleLinesV(center: Vec2, radius: float, color: Color);
+
+    fn DrawCircleSector(center: Vec2, radius: float, startAngle: float, endAngle: float, segments: int, color: Color);
+
+    fn DrawCircleSectorLines(center: Vec2, radius: float, startAngle: float, endAngle: float, segments: int, color: Color);
+
+    fn DrawCircleV(center: Vec2, radius: float, color: Color);
+
+    fn DrawCube(position: Vec3, width: float, height: float, length: float, color: Color);
+
+    fn DrawCubeV(position: Vec3, size: Vec3, color: Color);
+
+    fn DrawCubeWires(position: Vec3, width: float, height: float, length: float, color: Color);
+
+    fn DrawCubeWiresV(position: Vec3, size: Vec3, color: Color);
+
+    fn DrawCylinder(position: Vec3, radiusTop: float, radiusBottom: float, height: float, slices: int, color: Color);
+
+    fn DrawCylinderEx(startPos: Vec3, endPos: Vec3, startRadius: float, endRadius: float, sides: int, color: Color);
+
+    fn DrawCylinderWires(position: Vec3, radiusTop: float, radiusBottom: float, height: float, slices: int, color: Color);
+
+    fn DrawCylinderWiresEx(startPos: Vec3, endPos: Vec3, startRadius: float, endRadius: float, sides: int, color: Color);
+
+    fn DrawEllipse(centerX: int, centerY: int, radiusH: float, radiusV: float, color: Color);
+
+    fn DrawEllipseLines(centerX: int, centerY: int, radiusH: float, radiusV: float, color: Color);
+
+    fn DrawEllipseLinesV(center: Vec2, radiusH: float, radiusV: float, color: Color);
+
+    fn DrawEllipseV(center: Vec2, radiusH: float, radiusV: float, color: Color);
+
+    fn DrawFPS(posX: int, posY: int);
+
+    fn DrawGrid(slices: int, spacing: float);
+
+    fn DrawLine(startPosX: int, startPosY: int, endPosX: int, endPosY: int, color: Color);
+
+    fn DrawLine3D(startPos: Vec3, endPos: Vec3, color: Color);
+
+    fn DrawLineBezier(startPos: Vec2, endPos: Vec2, thick: float, color: Color);
+
+    fn DrawLineDashed(startPos: Vec2, endPos: Vec2, dashSize: int, spaceSize: int, color: Color);
+
+    fn DrawLineEx(startPos: Vec2, endPos: Vec2, thick: float, color: Color);
+
+    fn DrawLineStrip(points: Vec2?, pointCount: int, color: Color);
+
+    fn DrawLineV(startPos: Vec2, endPos: Vec2, color: Color);
+
+    fn DrawMesh(mesh: Mesh, material: Material, transform: Mat4);
+
+    fn DrawMeshInstanced(mesh: Mesh, material: Material, transforms: Mat4?, instances: int);
+
+    fn DrawModel(model: Model, position: Vec3, scale: float, tint: Color);
+
+    fn DrawModelEx(model: Model, position: Vec3, rotationAxis: Vec3, rotationAngle: float, scale: Vec3, tint: Color);
+
+    fn DrawModelWires(model: Model, position: Vec3, scale: float, tint: Color);
+
+    fn DrawModelWiresEx(model: Model, position: Vec3, rotationAxis: Vec3, rotationAngle: float, scale: Vec3, tint: Color);
+
+    fn DrawPixel(posX: int, posY: int, color: Color);
+
+    fn DrawPixelV(position: Vec2, color: Color);
+
+    fn DrawPlane(centerPos: Vec3, size: Vec2, color: Color);
+
+    fn DrawPoint3D(position: Vec3, color: Color);
+
+    fn DrawPoly(center: Vec2, sides: int, radius: float, rotation: float, color: Color);
+
+    fn DrawPolyLines(center: Vec2, sides: int, radius: float, rotation: float, color: Color);
+
+    fn DrawPolyLinesEx(center: Vec2, sides: int, radius: float, rotation: float, lineThick: float, color: Color);
+
+    fn DrawRay(ray: Ray, color: Color);
+
+    fn DrawRectangle(posX: int, posY: int, width: int, height: int, color: Color);
+
+    fn DrawRectangleGradientEx(rec: Rect, topLeft: Color, bottomLeft: Color, bottomRight: Color, topRight: Color);
+
+    fn DrawRectangleGradientH(posX: int, posY: int, width: int, height: int, left: Color, right: Color);
+
+    fn DrawRectangleGradientV(posX: int, posY: int, width: int, height: int, top: Color, bottom: Color);
+
+    fn DrawRectangleLines(posX: int, posY: int, width: int, height: int, color: Color);
+
+    fn DrawRectangleLinesEx(rec: Rect, lineThick: float, color: Color);
+
+    fn DrawRectanglePro(rec: Rect, origin: Vec2, rotation: float, color: Color);
+
+    fn DrawRectangleRec(rec: Rect, color: Color);
+
+    fn DrawRectangleRounded(rec: Rect, roundness: float, segments: int, color: Color);
+
+    fn DrawRectangleRoundedLines(rec: Rect, roundness: float, segments: int, color: Color);
+
+    fn DrawRectangleRoundedLinesEx(rec: Rect, roundness: float, segments: int, lineThick: float, color: Color);
+
+    fn DrawRectangleV(position: Vec2, size: Vec2, color: Color);
+
+    fn DrawRing(center: Vec2, innerRadius: float, outerRadius: float, startAngle: float, endAngle: float, segments: int, color: Color);
+
+    fn DrawRingLines(center: Vec2, innerRadius: float, outerRadius: float, startAngle: float, endAngle: float, segments: int, color: Color);
+
+    fn DrawSphere(centerPos: Vec3, radius: float, color: Color);
+
+    fn DrawSphereEx(centerPos: Vec3, radius: float, rings: int, slices: int, color: Color);
+
+    fn DrawSphereWires(centerPos: Vec3, radius: float, rings: int, slices: int, color: Color);
+
+    fn DrawSplineBasis(points: Vec2?, pointCount: int, thick: float, color: Color);
+
+    fn DrawSplineBezierCubic(points: Vec2?, pointCount: int, thick: float, color: Color);
+
+    fn DrawSplineBezierQuadratic(points: Vec2?, pointCount: int, thick: float, color: Color);
+
+    fn DrawSplineCatmullRom(points: Vec2?, pointCount: int, thick: float, color: Color);
+
+    fn DrawSplineLinear(points: Vec2?, pointCount: int, thick: float, color: Color);
+
+    fn DrawSplineSegmentBasis(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, thick: float, color: Color);
+
+    fn DrawSplineSegmentBezierCubic(p1: Vec2, c2: Vec2, c3: Vec2, p4: Vec2, thick: float, color: Color);
+
+    fn DrawSplineSegmentBezierQuadratic(p1: Vec2, c2: Vec2, p3: Vec2, thick: float, color: Color);
+
+    fn DrawSplineSegmentCatmullRom(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, thick: float, color: Color);
+
+    fn DrawSplineSegmentLinear(p1: Vec2, p2: Vec2, thick: float, color: Color);
+
+    fn DrawText(text: cstring?, posX: int, posY: int, fontSize: int, color: Color);
+
+    fn DrawTextCodepoint(font: Font, codepoint: int, position: Vec2, fontSize: float, tint: Color);
+
+    fn DrawTextCodepoints(font: Font, codepoints: int?, codepointCount: int, position: Vec2, fontSize: float, spacing: float, tint: Color);
+
+    fn DrawTextEx(font: Font, text: cstring?, position: Vec2, fontSize: float, spacing: float, tint: Color);
+
+    fn DrawTextPro(font: Font, text: cstring?, position: Vec2, origin: Vec2, rotation: float, fontSize: float, spacing: float, tint: Color);
+
+    fn DrawTexture(texture: Texture, posX: int, posY: int, tint: Color);
+
+    fn DrawTextureEx(texture: Texture, position: Vec2, rotation: float, scale: float, tint: Color);
+
+    fn DrawTextureNPatch(texture: Texture, nPatchInfo: NPatchInfo, dest: Rect, origin: Vec2, rotation: float, tint: Color);
+
+    fn DrawTexturePro(texture: Texture, source: Rect, dest: Rect, origin: Vec2, rotation: float, tint: Color);
+
+    fn DrawTextureRec(texture: Texture, source: Rect, position: Vec2, tint: Color);
+
+    fn DrawTextureV(texture: Texture, position: Vec2, tint: Color);
+
+    fn DrawTriangle(v1: Vec2, v2: Vec2, v3: Vec2, color: Color);
+
+    fn DrawTriangle3D(v1: Vec3, v2: Vec3, v3: Vec3, color: Color);
+
+    fn DrawTriangleFan(points: Vec2?, pointCount: int, color: Color);
+
+    fn DrawTriangleLines(v1: Vec2, v2: Vec2, v3: Vec2, color: Color);
+
+    fn DrawTriangleStrip(points: Vec2?, pointCount: int, color: Color);
+
+    fn DrawTriangleStrip3D(points: Vec3?, pointCount: int, color: Color);
+
+    // Images
+
+    fn ImageAlphaClear(image: Image?, color: Color, threshold: float);
+
+    fn ImageAlphaCrop(image: Image?, threshold: float);
+
+    fn ImageAlphaMask(image: Image?, alphaMask: Image);
+
+    fn ImageAlphaPremultiply(image: Image?);
+
+    fn ImageBlurGaussian(image: Image?, blurSize: int);
+
+    fn ImageClearBackground(dst: Image?, color: Color);
+
+    fn ImageColorBrightness(image: Image?, brightness: int);
+
+    fn ImageColorContrast(image: Image?, contrast: float);
+
+    fn ImageColorGrayscale(image: Image?);
+
+    fn ImageColorInvert(image: Image?);
+
+    fn ImageColorReplace(image: Image?, color: Color, replace: Color);
+
+    fn ImageColorTint(image: Image?, color: Color);
+
+    fn ImageCopy(image: Image) -> Image;
+
+    fn ImageCrop(image: Image?, crop: Rect);
+
+    fn ImageDither(image: Image?, rBpp: int, gBpp: int, bBpp: int, aBpp: int);
+
+    fn ImageDraw(dst: Image?, src: Image, srcRec: Rect, dstRec: Rect, tint: Color);
+
+    fn ImageDrawCircle(dst: Image?, centerX: int, centerY: int, radius: int, color: Color);
+
+    fn ImageDrawCircleLines(dst: Image?, centerX: int, centerY: int, radius: int, color: Color);
+
+    fn ImageDrawCircleLinesV(dst: Image?, center: Vec2, radius: int, color: Color);
+
+    fn ImageDrawCircleV(dst: Image?, center: Vec2, radius: int, color: Color);
+
+    fn ImageDrawLine(dst: Image?, startPosX: int, startPosY: int, endPosX: int, endPosY: int, color: Color);
+
+    fn ImageDrawLineEx(dst: Image?, start: Vec2, end: Vec2, thick: int, color: Color);
+
+    fn ImageDrawLineV(dst: Image?, start: Vec2, end: Vec2, color: Color);
+
+    fn ImageDrawPixel(dst: Image?, posX: int, posY: int, color: Color);
+
+    fn ImageDrawPixelV(dst: Image?, position: Vec2, color: Color);
+
+    fn ImageDrawRectangle(dst: Image?, posX: int, posY: int, width: int, height: int, color: Color);
+
+    fn ImageDrawRectangleLines(dst: Image?, rec: Rect, thick: int, color: Color);
+
+    fn ImageDrawRectangleRec(dst: Image?, rec: Rect, color: Color);
+
+    fn ImageDrawRectangleV(dst: Image?, position: Vec2, size: Vec2, color: Color);
+
+    fn ImageDrawText(dst: Image?, text: cstring?, posX: int, posY: int, fontSize: int, color: Color);
+
+    fn ImageDrawTextEx(dst: Image?, font: Font, text: cstring?, position: Vec2, fontSize: float, spacing: float, tint: Color);
+
+    fn ImageDrawTriangle(dst: Image?, v1: Vec2, v2: Vec2, v3: Vec2, color: Color);
+
+    fn ImageDrawTriangleEx(dst: Image?, v1: Vec2, v2: Vec2, v3: Vec2, c1: Color, c2: Color, c3: Color);
+
+    fn ImageDrawTriangleFan(dst: Image?, points: Vec2?, pointCount: int, color: Color);
+
+    fn ImageDrawTriangleLines(dst: Image?, v1: Vec2, v2: Vec2, v3: Vec2, color: Color);
+
+    fn ImageDrawTriangleStrip(dst: Image?, points: Vec2?, pointCount: int, color: Color);
+
+    fn ImageFlipHorizontal(image: Image?);
+
+    fn ImageFlipVertical(image: Image?);
+
+    fn ImageFormat(image: Image?, newFormat: int);
+
+    fn ImageFromChannel(image: Image, selectedChannel: int) -> Image;
+
+    fn ImageFromImage(image: Image, rec: Rect) -> Image;
+
+    fn ImageKernelConvolution(image: Image?, kernel: float?, kernelSize: int);
+
+    fn ImageMipmaps(image: Image?);
+
+    fn ImageResize(image: Image?, newWidth: int, newHeight: int);
+
+    fn ImageResizeCanvas(image: Image?, newWidth: int, newHeight: int, offsetX: int, offsetY: int, fill: Color);
+
+    fn ImageResizeNN(image: Image?, newWidth: int, newHeight: int);
+
+    fn ImageRotate(image: Image?, degrees: int);
+
+    fn ImageRotateCCW(image: Image?);
+
+    fn ImageRotateCW(image: Image?);
+
+    fn ImageText(text: cstring?, fontSize: int, color: Color) -> Image;
+
+    fn ImageTextEx(font: Font, text: cstring?, fontSize: float, spacing: float, tint: Color) -> Image;
+
+    fn ImageToPOT(image: Image?, fill: Color);
+
+    // Loading
+
+    fn LoadAudioStream(sampleRate: int, sampleSize: int, channels: int) -> AudioStream;
+
+    fn LoadAutomationEventList(fileName: cstring?) -> AutomationEventList;
+
+    fn LoadDirectoryFiles(dirPath: cstring?) -> FilePathList;
+
+    fn LoadDirectoryFilesEx(basePath: cstring?, filter: cstring?, scanSubdirs: bool) -> FilePathList;
+
+    fn LoadDroppedFiles() -> FilePathList;
+
+    fn LoadFont(fileName: cstring?) -> Font;
+
+    fn LoadFontEx(fileName: cstring?, fontSize: int, codepoints: int?, codepointCount: int) -> Font;
+
+    fn LoadFontFromImage(image: Image, key: Color, firstChar: int) -> Font;
+
+    fn LoadFontFromMemory(fileType: cstring?, fileData: u8?, dataSize: int, fontSize: int, codepoints: int?, codepointCount: int) -> Font;
+
+    fn LoadImage(fileName: cstring?) -> Image;
+
+    fn LoadImageAnim(fileName: cstring?, frames: int?) -> Image;
+
+    fn LoadImageAnimFromMemory(fileType: cstring?, fileData: u8?, dataSize: int, frames: int?) -> Image;
+
+    fn LoadImageFromMemory(fileType: cstring?, fileData: u8?, dataSize: int) -> Image;
+
+    fn LoadImageFromScreen() -> Image;
+
+    fn LoadImageFromTexture(texture: Texture) -> Image;
+
+    fn LoadImageRaw(fileName: cstring?, width: int, height: int, format: int, headerSize: int) -> Image;
+
+    fn LoadMaterialDefault() -> Material;
+
+    fn LoadModel(fileName: cstring?) -> Model;
+
+    fn LoadModelFromMesh(mesh: Mesh) -> Model;
+
+    fn LoadMusicStream(fileName: cstring?) -> Music;
+
+    fn LoadMusicStreamFromMemory(fileType: cstring?, data: u8?, dataSize: int) -> Music;
+
+    fn LoadRenderTexture(width: int, height: int) -> RenderTexture;
+
+    fn LoadShader(vsFileName: cstring?, fsFileName: cstring?) -> Shader;
+
+    fn LoadShaderFromMemory(vsCode: cstring?, fsCode: cstring?) -> Shader;
+
+    fn LoadSound(fileName: cstring?) -> Sound;
+
+    fn LoadSoundAlias(source: Sound) -> Sound;
+
+    fn LoadSoundFromWave(wave: Wave) -> Sound;
+
+    fn LoadTexture(fileName: cstring?) -> Texture;
+
+    fn LoadTextureCubemap(image: Image, layout: int) -> TextureCubemap;
+
+    fn LoadTextureFromImage(image: Image) -> Texture;
+
+    fn LoadVrStereoConfig(device: VrDeviceInfo) -> VrStereoConfig;
+
+    fn LoadWave(fileName: cstring?) -> Wave;
+
+    fn LoadWaveFromMemory(fileType: cstring?, fileData: u8?, dataSize: int) -> Wave;
+
+    fn UnloadAudioStream(stream: AudioStream);
+
+    fn UnloadAutomationEventList(list: AutomationEventList);
+
+    fn UnloadCodepoints(codepoints: int?);
+
+    fn UnloadDirectoryFiles(files: FilePathList);
+
+    fn UnloadDroppedFiles(files: FilePathList);
+
+    fn UnloadFileData(data: u8?);
+
+    fn UnloadFileText(text: cstring?);
+
+    fn UnloadFont(font: Font);
+
+    fn UnloadFontData(glyphs: GlyphInfo?, glyphCount: int);
+
+    fn UnloadImage(image: Image);
+
+    fn UnloadImageColors(colors: Color?);
+
+    fn UnloadImagePalette(colors: Color?);
+
+    fn UnloadMaterial(material: Material);
+
+    fn UnloadMesh(mesh: Mesh);
+
+    fn UnloadModel(model: Model);
+
+    fn UnloadModelAnimations(animations: ModelAnimation?, animCount: int);
+
+    fn UnloadMusicStream(music: Music);
+
+    fn UnloadRandomSequence(sequence: int?);
+
+    fn UnloadRenderTexture(target: RenderTexture);
+
+    fn UnloadShader(shader: Shader);
+
+    fn UnloadSound(sound: Sound);
+
+    fn UnloadSoundAlias(alias: Sound);
+
+    fn UnloadTextLines(text: cstring?, lineCount: int);
+
+    fn UnloadTexture(texture: Texture);
+
+    fn UnloadUTF8(text: cstring?);
+
+    fn UnloadVrStereoConfig(config: VrStereoConfig);
+
+    fn UnloadWave(wave: Wave);
+
+    fn UnloadWaveSamples(samples: float?);
+
+    // Misc
+
+    fn AttachAudioMixedProcessor(processor: AudioCallback);
+
+    fn AttachAudioStreamProcessor(stream: AudioStream, processor: AudioCallback);
+
+    fn ChangeDirectory(dirPath: cstring?) -> bool;
+
+    fn ClearBackground(color: Color);
+
+    fn ClearWindowState(flags: int);
+
+    fn ComputeCRC32(data: u8?, dataSize: int) -> int;
+
+    fn DetachAudioMixedProcessor(processor: AudioCallback);
+
+    fn DetachAudioStreamProcessor(stream: AudioStream, processor: AudioCallback);
+
+    fn DirectoryExists(dirPath: cstring?) -> bool;
+
+    fn DisableCursor();
+
+    fn DisableEventWaiting();
+
+    fn EnableCursor();
+
+    fn EnableEventWaiting();
+
+    fn ExportAutomationEventList(list: AutomationEventList, fileName: cstring?) -> bool;
+
+    fn ExportDataAsCode(data: u8?, dataSize: int, fileName: cstring?) -> bool;
+
+    fn ExportFontAsCode(font: Font, fileName: cstring?) -> bool;
+
+    fn ExportImage(image: Image, fileName: cstring?) -> bool;
+
+    fn ExportImageAsCode(image: Image, fileName: cstring?) -> bool;
+
+    fn ExportMesh(mesh: Mesh, fileName: cstring?) -> bool;
+
+    fn ExportMeshAsCode(mesh: Mesh, fileName: cstring?) -> bool;
+
+    fn ExportWave(wave: Wave, fileName: cstring?) -> bool;
+
+    fn ExportWaveAsCode(wave: Wave, fileName: cstring?) -> bool;
+
+    fn Fade(color: Color, alpha: float) -> Color;
+
+    fn FileCopy(srcPath: cstring?, dstPath: cstring?) -> int;
+
+    fn FileExists(fileName: cstring?) -> bool;
+
+    fn FileMove(srcPath: cstring?, dstPath: cstring?) -> int;
+
+    fn FileRemove(fileName: cstring?) -> int;
+
+    fn FileRename(fileName: cstring?, fileRename: cstring?) -> int;
+
+    fn FileTextFindIndex(fileName: cstring?, search: cstring?) -> int;
+
+    fn FileTextReplace(fileName: cstring?, search: cstring?, replacement: cstring?) -> int;
+
+    fn GenImageCellular(width: int, height: int, tileSize: int) -> Image;
+
+    fn GenImageChecked(width: int, height: int, checksX: int, checksY: int, col1: Color, col2: Color) -> Image;
+
+    fn GenImageColor(width: int, height: int, color: Color) -> Image;
+
+    fn GenImageFontAtlas(glyphs: GlyphInfo?, glyphRecs: Rect?, glyphCount: int, fontSize: int, padding: int, packMethod: int) -> Image;
+
+    fn GenImageGradientLinear(width: int, height: int, direction: int, start: Color, end: Color) -> Image;
+
+    fn GenImageGradientRadial(width: int, height: int, density: float, inner: Color, outer: Color) -> Image;
+
+    fn GenImageGradientSquare(width: int, height: int, density: float, inner: Color, outer: Color) -> Image;
+
+    fn GenImagePerlinNoise(width: int, height: int, offsetX: int, offsetY: int, scale: float) -> Image;
+
+    fn GenImageText(width: int, height: int, text: cstring?) -> Image;
+
+    fn GenImageWhiteNoise(width: int, height: int, factor: float) -> Image;
+
+    fn GenMeshCone(radius: float, height: float, slices: int) -> Mesh;
+
+    fn GenMeshCube(width: float, height: float, length: float) -> Mesh;
+
+    fn GenMeshCubicmap(cubicmap: Image, cubeSize: Vec3) -> Mesh;
+
+    fn GenMeshCylinder(radius: float, height: float, slices: int) -> Mesh;
+
+    fn GenMeshHeightmap(heightmap: Image, size: Vec3) -> Mesh;
+
+    fn GenMeshHemiSphere(radius: float, rings: int, slices: int) -> Mesh;
+
+    fn GenMeshKnot(radius: float, size: float, radSeg: int, sides: int) -> Mesh;
+
+    fn GenMeshPlane(width: float, length: float, resX: int, resZ: int) -> Mesh;
+
+    fn GenMeshPoly(sides: int, radius: float) -> Mesh;
+
+    fn GenMeshSphere(radius: float, rings: int, slices: int) -> Mesh;
+
+    fn GenMeshTangents(mesh: Mesh?);
+
+    fn GenMeshTorus(radius: float, size: float, radSeg: int, sides: int) -> Mesh;
+
+    fn GenTextureMipmaps(texture: Texture?);
+
+    fn HideCursor();
+
+    fn MakeDirectory(dirPath: cstring?) -> int;
+
+    fn MaximizeWindow();
+
+    fn MeasureText(text: cstring?, fontSize: int) -> int;
+
+    fn MeasureTextCodepoints(font: Font, codepoints: int?, length: int, fontSize: float, spacing: float) -> Vec2;
+
+    fn MeasureTextEx(font: Font, text: cstring?, fontSize: float, spacing: float) -> Vec2;
+
+    fn MemFree(ptr: void?);
+
+    fn MinimizeWindow();
+
+    fn OpenURL(url: cstring?);
+
+    // Custom frame control functions  NOTE: Those functions are intended for advanced users that want full control over the frame processing  By default EndDrawing() does this job: draws everything + SwapScreenBuffer() + manage frame timing +
+    fn PollInputEvents();
+
+    fn RestoreWindow();
+
+    fn ResumeAudioStream(stream: AudioStream);
+
+    fn ResumeMusicStream(music: Music);
+
+    fn ResumeSound(sound: Sound);
+
+    fn SaveFileData(fileName: cstring?, data: void?, dataSize: int) -> bool;
+
+    fn SaveFileText(fileName: cstring?, text: cstring?) -> bool;
+
+    fn SeekMusicStream(music: Music, position: float);
+
+    fn ShowCursor();
+
+    fn StartAutomationEventRecording();
+
+    // Custom frame control functions  NOTE: Those functions are intended for advanced users that want full control over the frame processing  By default EndDrawing() does this job: draws everything +
+    fn SwapScreenBuffer();
+
+    fn TakeScreenshot(fileName: cstring?);
+
+    fn ToggleBorderlessWindowed();
+
+    fn ToggleFullscreen();
+
+    // variadic
+    fn TraceLog(logLevel: int, text: cstring?);
+
+    fn UploadMesh(mesh: Mesh?, dynamic: bool);
+
+    fn WaitTime(seconds: float);
+
+    fn WaveCopy(wave: Wave) -> Wave;
+
+    fn WaveCrop(wave: Wave?, initFrame: int, finalFrame: int);
+
+    fn WaveFormat(wave: Wave?, sampleRate: int, sampleSize: int, channels: int);
+
+    // Query
+
+    fn CheckCollisionBoxSphere(box: BoundingBox, center: Vec3, radius: float) -> bool;
+
+    fn CheckCollisionBoxes(box1: BoundingBox, box2: BoundingBox) -> bool;
+
+    fn CheckCollisionCircleLine(center: Vec2, radius: float, p1: Vec2, p2: Vec2) -> bool;
+
+    fn CheckCollisionCircleRec(center: Vec2, radius: float, rec: Rect) -> bool;
+
+    fn CheckCollisionCircles(center1: Vec2, radius1: float, center2: Vec2, radius2: float) -> bool;
+
+    fn CheckCollisionLines(startPos1: Vec2, endPos1: Vec2, startPos2: Vec2, endPos2: Vec2, collisionPoint: Vec2?) -> bool;
+
+    fn CheckCollisionPointCircle(point: Vec2, center: Vec2, radius: float) -> bool;
+
+    fn CheckCollisionPointLine(point: Vec2, p1: Vec2, p2: Vec2, threshold: int) -> bool;
+
+    fn CheckCollisionPointPoly(point: Vec2, points: Vec2?, pointCount: int) -> bool;
+
+    fn CheckCollisionPointRec(point: Vec2, rec: Rect) -> bool;
+
+    fn CheckCollisionPointTriangle(point: Vec2, p1: Vec2, p2: Vec2, p3: Vec2) -> bool;
+
+    fn CheckCollisionRecs(rec1: Rect, rec2: Rect) -> bool;
+
+    fn CheckCollisionSpheres(center1: Vec3, radius1: float, center2: Vec3, radius2: float) -> bool;
+
+    fn GetCameraMatrix(camera: Camera3D) -> Mat4;
+
+    fn GetCameraMatrix2D(camera: Camera2D) -> Mat4;
+
+    fn GetCharPressed() -> int;
+
+    fn GetClipboardImage() -> Image;
+
+    fn GetCodepoint(text: cstring?, codepointSize: int?) -> int;
+
+    fn GetCodepointCount(text: cstring?) -> int;
+
+    fn GetCodepointNext(text: cstring?, codepointSize: int?) -> int;
+
+    fn GetCodepointPrevious(text: cstring?, codepointSize: int?) -> int;
+
+    fn GetCollisionRec(rec1: Rect, rec2: Rect) -> Rect;
+
+    fn GetColor(hexValue: int) -> Color;
+
+    fn GetCurrentMonitor() -> int;
+
+    fn GetDirectoryFileCount(dirPath: cstring?) -> int;
+
+    fn GetDirectoryFileCountEx(basePath: cstring?, filter: cstring?, scanSubdirs: bool) -> int;
+
+    fn GetFPS() -> int;
+
+    fn GetFileLength(fileName: cstring?) -> int;
+
+    fn GetFileModTime(fileName: cstring?) -> int;
+
+    fn GetFontDefault() -> Font;
+
+    fn GetFrameTime() -> float;
+
+    fn GetGamepadAxisCount(gamepad: int) -> int;
+
+    fn GetGamepadAxisMovement(gamepad: int, axis: int) -> float;
+
+    fn GetGamepadButtonPressed() -> int;
+
+    fn GetGestureDetected() -> int;
+
+    fn GetGestureDragAngle() -> float;
+
+    fn GetGestureDragVector() -> Vec2;
+
+    fn GetGestureHoldDuration() -> float;
+
+    fn GetGesturePinchAngle() -> float;
+
+    fn GetGesturePinchVector() -> Vec2;
+
+    fn GetGlyphAtlasRec(font: Font, codepoint: int) -> Rect;
+
+    fn GetGlyphIndex(font: Font, codepoint: int) -> int;
+
+    fn GetGlyphInfo(font: Font, codepoint: int) -> GlyphInfo;
+
+    fn GetImageAlphaBorder(image: Image, threshold: float) -> Rect;
+
+    fn GetImageColor(image: Image, x: int, y: int) -> Color;
+
+    // Keyboard keys (US keyboard layout)  NOTE: Use
+    fn GetKeyPressed() -> int;
+
+    fn GetMasterVolume() -> float;
+
+    fn GetMeshBoundingBox(mesh: Mesh) -> BoundingBox;
+
+    fn GetModelBoundingBox(model: Model) -> BoundingBox;
+
+    fn GetMonitorCount() -> int;
+
+    fn GetMonitorHeight(monitor: int) -> int;
+
+    fn GetMonitorPhysicalHeight(monitor: int) -> int;
+
+    fn GetMonitorPhysicalWidth(monitor: int) -> int;
+
+    fn GetMonitorPosition(monitor: int) -> Vec2;
+
+    fn GetMonitorRefreshRate(monitor: int) -> int;
+
+    fn GetMonitorWidth(monitor: int) -> int;
+
+    fn GetMouseDelta() -> Vec2;
+
+    fn GetMousePosition() -> Vec2;
+
+    fn GetMouseWheelMove() -> float;
+
+    fn GetMouseWheelMoveV() -> Vec2;
+
+    fn GetMouseX() -> int;
+
+    fn GetMouseY() -> int;
+
+    fn GetMusicTimeLength(music: Music) -> float;
+
+    fn GetMusicTimePlayed(music: Music) -> float;
+
+    fn GetPixelColor(srcPtr: void?, format: int) -> Color;
+
+    fn GetPixelDataSize(width: int, height: int, format: int) -> int;
+
+    fn GetRandomValue(min: int, max: int) -> int;
+
+    fn GetRayCollisionBox(ray: Ray, box: BoundingBox) -> RayCollision;
+
+    fn GetRayCollisionMesh(ray: Ray, mesh: Mesh, transform: Mat4) -> RayCollision;
+
+    fn GetRayCollisionQuad(ray: Ray, p1: Vec3, p2: Vec3, p3: Vec3, p4: Vec3) -> RayCollision;
+
+    fn GetRayCollisionSphere(ray: Ray, center: Vec3, radius: float) -> RayCollision;
+
+    fn GetRayCollisionTriangle(ray: Ray, p1: Vec3, p2: Vec3, p3: Vec3) -> RayCollision;
+
+    fn GetRenderHeight() -> int;
+
+    fn GetRenderWidth() -> int;
+
+    fn GetScreenHeight() -> int;
+
+    fn GetScreenToWorld2D(position: Vec2, camera: Camera2D) -> Vec2;
+
+    fn GetScreenToWorldRay(position: Vec2, camera: Camera3D) -> Ray;
+
+    fn GetScreenToWorldRayEx(position: Vec2, camera: Camera3D, width: int, height: int) -> Ray;
+
+    fn GetScreenWidth() -> int;
+
+    fn GetShaderLocation(shader: Shader, uniformName: cstring?) -> int;
+
+    fn GetShaderLocationAttrib(shader: Shader, attribName: cstring?) -> int;
+
+    fn GetShapesTexture() -> Texture;
+
+    fn GetShapesTextureRectangle() -> Rect;
+
+    fn GetSplinePointBasis(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, t: float) -> Vec2;
+
+    fn GetSplinePointBezierCubic(p1: Vec2, c2: Vec2, c3: Vec2, p4: Vec2, t: float) -> Vec2;
+
+    fn GetSplinePointBezierQuad(p1: Vec2, c2: Vec2, p3: Vec2, t: float) -> Vec2;
+
+    fn GetSplinePointCatmullRom(p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2, t: float) -> Vec2;
+
+    fn GetSplinePointLinear(startPos: Vec2, endPos: Vec2, t: float) -> Vec2;
+
+    fn GetTime() -> float;
+
+    fn GetTouchPointCount() -> int;
+
+    fn GetTouchPointId(index: int) -> int;
+
+    fn GetTouchPosition(index: int) -> Vec2;
+
+    fn GetTouchX() -> int;
+
+    fn GetTouchY() -> int;
+
+    fn GetWindowPosition() -> Vec2;
+
+    fn GetWindowScaleDPI() -> Vec2;
+
+    fn GetWorldToScreen(position: Vec3, camera: Camera3D) -> Vec2;
+
+    fn GetWorldToScreen2D(position: Vec2, camera: Camera2D) -> Vec2;
+
+    fn GetWorldToScreenEx(position: Vec3, camera: Camera3D, width: int, height: int) -> Vec2;
+
+    fn IsAudioDeviceReady() -> bool;
+
+    fn IsAudioStreamPlaying(stream: AudioStream) -> bool;
+
+    fn IsAudioStreamProcessed(stream: AudioStream) -> bool;
+
+    fn IsAudioStreamValid(stream: AudioStream) -> bool;
+
+    fn IsCursorHidden() -> bool;
+
+    fn IsCursorOnScreen() -> bool;
+
+    fn IsFileDropped() -> bool;
+
+    fn IsFileExtension(fileName: cstring?, ext: cstring?) -> bool;
+
+    fn IsFileNameValid(fileName: cstring?) -> bool;
+
+    fn IsFontValid(font: Font) -> bool;
+
+    fn IsGamepadAvailable(gamepad: int) -> bool;
+
+    fn IsGamepadButtonDown(gamepad: int, button: int) -> bool;
+
+    fn IsGamepadButtonPressed(gamepad: int, button: int) -> bool;
+
+    fn IsGamepadButtonReleased(gamepad: int, button: int) -> bool;
+
+    fn IsGamepadButtonUp(gamepad: int, button: int) -> bool;
+
+    fn IsGestureDetected(gesture: int) -> bool;
+
+    fn IsImageValid(image: Image) -> bool;
+
+    fn IsKeyDown(key: int) -> bool;
+
+    fn IsKeyPressed(key: int) -> bool;
+
+    fn IsKeyPressedRepeat(key: int) -> bool;
+
+    fn IsKeyReleased(key: int) -> bool;
+
+    fn IsKeyUp(key: int) -> bool;
+
+    fn IsMaterialValid(material: Material) -> bool;
+
+    fn IsModelAnimationValid(model: Model, anim: ModelAnimation) -> bool;
+
+    fn IsModelValid(model: Model) -> bool;
+
+    fn IsMouseButtonDown(button: int) -> bool;
+
+    fn IsMouseButtonPressed(button: int) -> bool;
+
+    fn IsMouseButtonReleased(button: int) -> bool;
+
+    fn IsMouseButtonUp(button: int) -> bool;
+
+    fn IsMusicStreamPlaying(music: Music) -> bool;
+
+    fn IsMusicValid(music: Music) -> bool;
+
+    fn IsPathFile(path: cstring?) -> bool;
+
+    fn IsRenderTextureValid(target: RenderTexture) -> bool;
+
+    fn IsShaderValid(shader: Shader) -> bool;
+
+    fn IsSoundPlaying(sound: Sound) -> bool;
+
+    fn IsSoundValid(sound: Sound) -> bool;
+
+    fn IsTextureValid(texture: Texture) -> bool;
+
+    fn IsWaveValid(wave: Wave) -> bool;
+
+    fn IsWindowFocused() -> bool;
+
+    fn IsWindowFullscreen() -> bool;
+
+    fn IsWindowHidden() -> bool;
+
+    fn IsWindowMaximized() -> bool;
+
+    fn IsWindowMinimized() -> bool;
+
+    fn IsWindowReady() -> bool;
+
+    fn IsWindowResized() -> bool;
+
+    fn IsWindowState(flag: int) -> bool;
+
+    // Text
+
+    fn TextAppend(text: cstring?, append: cstring?, position: int?);
+
+    fn TextCopy(dst: cstring?, src: cstring?) -> int;
+
+    fn TextFindIndex(text: cstring?, search: cstring?) -> int;
+
+    fn TextIsEqual(text1: cstring?, text2: cstring?) -> bool;
+
+    fn TextLength(text: cstring?) -> int;
+
+    fn TextToFloat(text: cstring?) -> float;
+
+    fn TextToInteger(text: cstring?) -> int;
+
+    // Update
+
+    fn UpdateAudioStream(stream: AudioStream, data: void?, frameCount: int);
+
+    fn UpdateCamera(camera: Camera3D?, mode: int);
+
+    fn UpdateCameraPro(camera: Camera3D?, movement: Vec3, rotation: Vec3, zoom: float);
+
+    fn UpdateMeshBuffer(mesh: Mesh, index: int, data: void?, dataSize: int, offset: int);
+
+    fn UpdateModelAnimation(model: Model, anim: ModelAnimation, frame: float);
+
+    fn UpdateModelAnimationEx(model: Model, animA: ModelAnimation, frameA: float, animB: ModelAnimation, frameB: float, blend: float);
+
+    fn UpdateMusicStream(music: Music);
+
+    fn UpdateSound(sound: Sound, data: void?, sampleCount: int);
+
+    fn UpdateTexture(texture: Texture, pixels: void?);
+
+    fn UpdateTextureRec(texture: Texture, rec: Rect, pixels: void?);
+
+    // Window
+
+    fn WindowShouldClose() -> bool;
+
+}

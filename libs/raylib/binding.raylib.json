@@ -1,0 +1,15 @@
+{
+  "module": "raylib",
+  "version": "6.0",
+  "header": "raylib.h",
+  "companionHeaders": ["raymath.h", "rlgl.h"],
+  "linkLib": "raylib",
+  "platformLibs": {
+    "windows": ["raylib", "winmm", "gdi32", "opengl32"],
+    "linux": ["raylib", "m", "pthread", "dl", "rt", "X11"],
+    "darwin": ["raylib", "OpenGL", "Cocoa", "IOKit", "CoreVideo"]
+  },
+  "skipFunctions": [],
+  "rename": {},
+  "ownership": {}
+}

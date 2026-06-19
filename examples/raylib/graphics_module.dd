@@ -1,0 +1,29 @@
+// Module import demo — `use graphics;` loads libs/graphics/wrapper.dd (no include)
+// Run: datadream check --codegen graphics_module.dd
+
+use graphics;
+
+app "Graphics Module";
+
+window {
+    size: 800, 600;
+    title: "use graphics";
+    fps: 60;
+}
+
+draw {
+    clear(colors.black);
+
+    draw.text("Loaded via use graphics", {
+        position: vec2(20, 20),
+        size: 24,
+        color: colors.white
+    });
+
+    draw.rect({
+        position: vec2(20, 60),
+        width: 200,
+        height: 80,
+        color: colors.sky
+    });
+}

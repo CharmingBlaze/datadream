@@ -1,0 +1,69 @@
+// Friendly command reference — all namespaces (compile check spec)
+// Run: datadream check examples/raylib/commands.dd --codegen
+
+app "Commands Demo";
+
+window {
+    size: 800, 600;
+    title: "DataDream Commands";
+    fps: 60;
+}
+
+let score = 0;
+let pos = vec2(100, 100);
+let jump = assets.sound("jump.wav");
+
+start {
+    pos = random.point(screen.size);
+}
+
+update {
+    if input.pressed(keys.space) || input.pressed("escape") {
+        quit();
+    }
+
+    pos += input.move2d() * 200 * dt;
+
+    if input.mousePressed("left") {
+        let m = input.mouse();
+        if collision.pointInRect(m, { position: vec2(50, 50), width: 200, height: 100 }) {
+            score += 1;
+            audio.play(jump);
+        }
+    }
+
+    let _scroll = input.scroll();
+}
+
+draw {
+    clear(#101018);
+
+    draw.rect({ position: vec2(50, 50), width: 200, height: 100, color: colors.darkgray });
+    draw.rectOutline({ position: vec2(50, 50), width: 200, height: 100, color: colors.white });
+    draw.circle({ position: pos, radius: 24, color: colors.gold });
+    draw.circleOutline({ position: pos, radius: 24, color: colors.white });
+    draw.line({ from: vec2(0, 0), to: screen.center, color: colors.blue });
+    draw.triangle({
+        p1: vec2(600, 100),
+        p2: vec2(700, 200),
+        p3: vec2(500, 200),
+        color: colors.red
+    });
+    draw.ellipse({ position: vec2(650, 400), radius: 40, color: colors.green });
+    draw.point({ position: input.mouse(), color: colors.white });
+
+    draw.text("Score: {score}", {
+        position: vec2(20, 20),
+        size: 24,
+        color: colors.white
+    });
+
+    draw.text("Click the gray box", {
+        position: vec2(screen.width / 2, 580),
+        size: 16,
+        color: colors.lightgray,
+        align: "center"
+    });
+
+    draw.fps({ position: vec2(720, 10) });
+}

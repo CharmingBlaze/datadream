@@ -1,0 +1,311 @@
+// packdist assembles a DataDream distribution directory or zip.
+//
+// Usage:
+//
+//	packdist --out dist/datadream-windows-amd64.zip --verify
+//	packdist --verify-only /path/to/unzipped-dist
+//
+// --verify: doctor + hello_friendly + hello_raw + coin-runner in packed tree
+// Build once (maintainers): go build -o packdist ./tools/packdist
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+func main() {
+	out := flag.String("out", defaultOut(), "output directory or .zip path")
+	verify := flag.Bool("verify", false, "run doctor + build hello_friendly + hello_raw + coin-runner on packed tree")
+	verifyOnly := flag.String("verify-only", "", "verify an existing unpacked distribution directory")
+	flag.Parse()
+
+	if *verifyOnly != "" {
+		if err := verifyDist(*verifyOnly); err != nil {
+			die(err)
+		}
+		fmt.Println("✓ Verification passed (doctor + hello_friendly + hello_raw + coin-runner build)")
+		return
+	}
+
+	root, err := os.Getwd()
+	if err != nil {
+		die(err)
+	}
+
+	if strings.HasSuffix(strings.ToLower(*out), ".zip") {
+		if err := packZip(root, *out, *verify); err != nil {
+			die(err)
+		}
+		fmt.Printf("✓ Distribution zip: %s\n", *out)
+		return
+	}
+
+	if err := packDir(root, *out); err != nil {
+		die(err)
+	}
+	fmt.Printf("✓ Distribution folder: %s\n", *out)
+	if *verify {
+		if err := verifyDist(*out); err != nil {
+			die(err)
+		}
+		fmt.Println("✓ Verification passed (doctor + hello_friendly + hello_raw + coin-runner build)")
+	}
+}
+
+func defaultOut() string {
+	return filepath.Join("dist", fmt.Sprintf("datadream-%s-%s.zip", runtime.GOOS, runtime.GOARCH))
+}
+
+func packDir(root, dest string) error {
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return err
+	}
+
+	copyTree(filepath.Join(root, "sdk"), filepath.Join(dest, "sdk"))
+	copyTree(filepath.Join(root, "examples"), filepath.Join(dest, "examples"))
+	copyTree(filepath.Join(root, "libs"), filepath.Join(dest, "libs"))
+
+	for _, doc := range []string{"README.md", filepath.Join("docs", "SETUP.md"), filepath.Join("docs", "DISTRIBUTION.md")} {
+		src := filepath.Join(root, doc)
+		dst := filepath.Join(dest, doc)
+		copyFile(src, dst)
+	}
+	copyFile(filepath.Join(root, "sdk", "README.md"), filepath.Join(dest, "sdk", "README.md"))
+
+	binDir := filepath.Join(dest, "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		return err
+	}
+	srcBin, err := findCompilerBinary(root)
+	if err != nil {
+		return err
+	}
+	dstBin := filepath.Join(binDir, filepath.Base(srcBin))
+	if err := copyFileStrict(srcBin, dstBin); err != nil {
+		return err
+	}
+	return nil
+}
+
+func packZip(root, zipPath string, verify bool) error {
+	tmp := strings.TrimSuffix(zipPath, ".zip") + "-tmp"
+	if err := os.RemoveAll(tmp); err != nil {
+		return err
+	}
+	if err := packDir(root, tmp); err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	if verify {
+		if err := verifyDist(tmp); err != nil {
+			return err
+		}
+		fmt.Println("✓ Verification passed (doctor + hello_friendly + hello_raw + coin-runner build)")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(zipPath), 0755); err != nil {
+		return err
+	}
+	f, err := os.Create(zipPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	zw := zip.NewWriter(f)
+	defer zw.Close()
+
+	return filepath.Walk(tmp, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(tmp, path)
+		w, err := zw.Create(filepath.ToSlash(rel))
+		if err != nil {
+			return err
+		}
+		r, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+		_, err = io.Copy(w, r)
+		return err
+	})
+}
+
+func verifyDist(dest string) error {
+	bin, err := findPackedBinary(dest)
+	if err != nil {
+		return err
+	}
+	bin, err = filepath.Abs(bin)
+	if err != nil {
+		return err
+	}
+	dest, err = filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+	env := append(os.Environ(), "DATADREAM_ROOT="+dest)
+
+	cmd := exec.Command(bin, "doctor")
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("doctor failed in packed tree: %w", err)
+	}
+
+	hello := filepath.Join(dest, "examples", "raylib", "hello_friendly.dd")
+	outHello := filepath.Join(dest, "bin", "hello_smoke"+exeSuffix())
+	cmd = exec.Command(bin, "build", hello, "-o", outHello)
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("hello_friendly build failed in packed tree: %w", err)
+	}
+
+	helloRaw := filepath.Join(dest, "examples", "raylib", "hello_raw.dd")
+	outHelloRaw := filepath.Join(dest, "bin", "hello_raw_smoke"+exeSuffix())
+	cmd = exec.Command(bin, "build", helloRaw, "-o", outHelloRaw)
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("hello_raw build failed in packed tree: %w", err)
+	}
+
+	coinRunnerDir := filepath.Join(dest, "examples", "coin-runner")
+	coinOut := filepath.Join(dest, "bin", "coin_runner_smoke"+exeSuffix())
+	cmd = exec.Command(bin, "build", "game.dd", "-o", coinOut)
+	cmd.Dir = coinRunnerDir
+	cmd.Env = env
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("coin-runner build failed in packed tree: %w", err)
+	}
+	return nil
+}
+
+func findCompilerBinary(root string) (string, error) {
+	names := []string{"datadream" + exeSuffix(), "datadream"}
+	for _, name := range names {
+		p := filepath.Join(root, name)
+		if fileExists(p) {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("datadream binary not found — run: go build -o datadream ./cmd/datadream")
+}
+
+func findPackedBinary(dest string) (string, error) {
+	p := filepath.Join(dest, "bin", "datadream"+exeSuffix())
+	if fileExists(p) {
+		return p, nil
+	}
+	p = filepath.Join(dest, "bin", "datadream")
+	if fileExists(p) {
+		return p, nil
+	}
+	return "", fmt.Errorf("packed binary missing under %s/bin", dest)
+}
+
+func exeSuffix() string {
+	if runtime.GOOS == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
+func copyTree(src, dst string) error {
+	if _, err := os.Stat(src); err != nil {
+		return nil
+	}
+	inExamples := filepath.Base(src) == "examples"
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		if shouldSkipCopy(rel, inExamples) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+		return copyFile(path, target)
+	})
+}
+
+func shouldSkipCopy(rel string, inExamples bool) bool {
+	rel = filepath.ToSlash(rel)
+	base := filepath.Base(rel)
+	switch base {
+	case ".git", "node_modules":
+		return true
+	}
+	if inExamples && strings.HasSuffix(strings.ToLower(rel), ".exe") {
+		return true
+	}
+	if strings.HasSuffix(rel, ".zip") {
+		return true
+	}
+	return false
+}
+
+func copyFile(src, dst string) error {
+	if _, err := os.Stat(src); err != nil {
+		return nil
+	}
+	return copyFileStrict(src, dst)
+}
+
+func copyFileStrict(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func die(err error) {
+	fmt.Fprintln(os.Stderr, "error:", err)
+	os.Exit(1)
+}

@@ -1,0 +1,4 @@
+// Friendly graphics module — loaded by `use graphics;` (see internal/pkg/resolver.go).
+// Enables raylib link + friendly draw/input APIs (compiler builtins).
+
+use raylib;

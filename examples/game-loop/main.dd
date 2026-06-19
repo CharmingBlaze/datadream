@@ -1,0 +1,25 @@
+app "My Game";
+
+use raylib;
+
+window {
+    size: 1280, 720;
+    title: "My Game";
+}
+
+let player = sprite("player.png");
+let speed = 300.0;
+
+start {
+    player.position = vec2(100, 200);
+}
+
+update {
+    let move = input.axis("left", "right", "up", "down");
+    player.position += move * speed * dt;
+}
+
+draw {
+    clear(colors.sky);
+    draw.sprite(player);
+}

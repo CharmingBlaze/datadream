@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test (Go)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Go tests
+        run: |
+          go test ./internal/...
+          go test ./tools/packdist/...
+
+  linux-build:
+    name: Build (Linux amd64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install system build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang libx11-dev libxrandr-dev libxi-dev libxcursor-dev libgl1-mesa-dev
+
+      - name: Build datadream
+        run: go build -o datadream ./cmd/datadream
+
+      - name: Install bundled raylib headers + libs
+        run: |
+          ./datadream sdk install headers
+          ./datadream sdk install raylib
+
+      - name: SDK doctor
+        run: ./datadream doctor
+
+      - name: Check all examples (codegen)
+        run: |
+          find examples -name '*.dd' -print0 | while IFS= read -r -d '' f; do
+            echo "check --codegen $f"
+            ./datadream check --codegen "$f"
+          done
+
+      - name: Build all examples
+        run: |
+          chmod +x scripts/build-all-examples.sh
+          ./scripts/build-all-examples.sh
+
+  bindgen-check:
+    name: Bindgen (raw.dd drift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Verify raw.dd matches bindgen
+        run: |
+          go build -o datadream ./cmd/datadream
+          chmod +x scripts/check-bindgen.sh
+          ./scripts/check-bindgen.sh
+
+  dist-verify-linux:
+    name: Dist verify (Linux zip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install system build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang libx11-dev libxrandr-dev libxi-dev libxcursor-dev libgl1-mesa-dev unzip
+
+      - name: Pack and verify distribution
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          go build -o datadream ./cmd/datadream
+          go build -o packdist ./tools/packdist
+          ./datadream sdk install headers
+          ./datadream sdk install raylib
+          ./packdist --out dist/datadream-linux-amd64.zip --verify
+          chmod +x scripts/verify-dist.sh
+          ./scripts/verify-dist.sh dist/datadream-linux-amd64.zip
+
+  macos-build:
+    name: Build (macOS arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Build datadream
+        run: go build -o datadream ./cmd/datadream
+
+      - name: Install bundled raylib headers + libs
+        run: |
+          ./datadream sdk install headers
+          ./datadream sdk install raylib
+
+      - name: SDK doctor
+        run: ./datadream doctor
+
+      - name: Check all examples (codegen)
+        run: |
+          find examples -name '*.dd' -print0 | while IFS= read -r -d '' f; do
+            echo "check --codegen $f"
+            ./datadream check --codegen "$f"
+          done
+
+      - name: Build all examples
+        run: |
+          chmod +x scripts/build-all-examples.sh
+          ./scripts/build-all-examples.sh
+
+  dist-verify-macos:
+    name: Dist verify (macOS zip)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Pack and verify distribution
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          go build -o datadream ./cmd/datadream
+          go build -o packdist ./tools/packdist
+          ./datadream sdk install headers
+          ./datadream sdk install raylib
+          ./packdist --out dist/datadream-darwin-arm64.zip --verify
+          chmod +x scripts/verify-dist.sh
+          ./scripts/verify-dist.sh dist/datadream-darwin-arm64.zip
+
+  dist-verify-windows:
+    name: Dist verify (Windows zip)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Pack and verify distribution
+        shell: pwsh
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          .\scripts\build-dist.ps1
+          .\scripts\verify-dist.ps1 dist\datadream-windows-amd64.zip

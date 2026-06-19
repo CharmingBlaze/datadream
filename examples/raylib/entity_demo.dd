@@ -1,0 +1,54 @@
+app "Entity Demo";
+
+window {
+    size: 800, 600;
+    title: "Entity Demo";
+    fps: 60;
+}
+
+let spawns = 0;
+
+entity Mover {
+    update {
+        self.position.x += 120 * dt;
+        if self.position.x > 820 {
+            destroy self;
+        }
+    }
+    draw {
+        draw.rect({
+            position: vec2(self.position.x, 280),
+            width: 24,
+            height: 24,
+            color: colors.skyblue
+        });
+    }
+}
+
+system Bounds {
+    /* systems run each frame after entity updates */
+}
+
+start {
+    spawn Mover at vec2(0, 300);
+}
+
+on key "space" pressed {
+    spawn Mover at vec2(0, 300);
+    spawns += 1;
+}
+
+draw {
+    clear(colors.black);
+    draw.text("Space spawns movers ({spawns})", {
+        position: vec2(20, 20),
+        size: 28,
+        color: colors.white
+    });
+    draw.rect({
+        position: vec2(0, 280),
+        width: 800,
+        height: 40,
+        color: colors.darkgray
+    });
+}

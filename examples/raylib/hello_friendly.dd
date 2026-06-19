@@ -1,0 +1,21 @@
+// Friendly app-style hello world — compiles to raylib via draw.text → DrawText
+
+app "Hello";
+
+use raylib;
+
+window {
+    size: 800, 600;
+    title: "Hello";
+    fps: 60;
+}
+
+draw {
+    clear(colors.black);
+
+    draw.text("Hello World", {
+        position: vec2(300, 280),
+        size: 32,
+        color: colors.white
+    });
+}

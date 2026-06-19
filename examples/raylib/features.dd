@@ -1,0 +1,67 @@
+// Friendly API living spec — draw, input, colors (compile + build reference)
+
+app "Features";
+
+window {
+    size: 800, 450;
+    title: "DataDream — friendly API";
+    fps: 60;
+}
+
+let message = "Press space to change color";
+
+start {
+    message = "Press space to change color";
+}
+
+update {
+    if input.pressed("space") {
+        message = "Space pressed!";
+    }
+    if input.released("space") {
+        message = "Press space to change color";
+    }
+}
+
+draw {
+    clear(colors.raywhite);
+
+    draw.text("DataDream friendly API", {
+        position: vec2(20, 20),
+        size: 24,
+        color: colors.darkgray
+    });
+
+    draw.text(message, {
+        position: vec2(20, 50),
+        size: 20,
+        color: colors.darkgray
+    });
+
+    draw.rect({
+        position: vec2(40, 120),
+        width: 120,
+        height: 80,
+        color: colors.sky
+    });
+
+    draw.circle({
+        position: vec2(300, 160),
+        radius: 40,
+        color: colors.red
+    });
+
+    draw.line({
+        from: vec2(400, 120),
+        to: vec2(550, 200),
+        color: colors.blue
+    });
+
+    if input.down("w") || input.down("a") || input.down("s") || input.down("d") {
+        draw.text("WASD held", {
+            position: vec2(20, 400),
+            size: 18,
+            color: colors.green
+        });
+    }
+}

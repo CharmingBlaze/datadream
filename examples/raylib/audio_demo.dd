@@ -1,0 +1,44 @@
+// Audio + assets demo — load sound/texture, play, draw, defer cleanup
+// Build/run from this directory so assets/ resolves:
+//   datadream build audio_demo.dd -o audio_demo
+
+use raylib;
+
+fn main() {
+    InitWindow(800, 600, "DataDream — Audio Demo");
+    SetTargetFPS(60);
+    defer CloseWindow();
+    defer audio.shutdown();
+
+    let blip = assets.sound("assets/blip.wav");
+    let icon = assets.texture("assets/icon.png");
+    defer audio.unload(blip);
+    defer assets.unload(icon);
+
+    audio.play(blip);
+
+    while !WindowShouldClose() {
+        if IsKeyPressed(KEY_SPACE) {
+            audio.play(blip);
+        }
+
+        BeginDrawing();
+        clear(colors.black);
+
+        icon.position = vec2(320, 220);
+        draw.sprite(icon);
+
+        draw.text("Space: replay sound", {
+            position: vec2(20, 20),
+            size: 24,
+            color: colors.white
+        });
+        draw.text("Defer unloads sound + texture on exit", {
+            position: vec2(20, 52),
+            size: 16,
+            color: colors.lightgray
+        });
+
+        EndDrawing();
+    }
+}

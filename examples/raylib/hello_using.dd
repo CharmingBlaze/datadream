@@ -1,0 +1,19 @@
+// Raw raylib hello world — `use raylib` brings names into file scope
+
+use raylib;
+
+fn main() {
+    InitWindow(800, 600, "Hello");
+    SetTargetFPS(60);
+
+    while !WindowShouldClose() {
+        BeginDrawing();
+
+        ClearBackground(BLACK);
+        DrawText("Hello World", 300, 280, 32, WHITE);
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+}

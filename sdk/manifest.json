@@ -1,0 +1,29 @@
+{
+  "name": "datadream-sdk",
+  "version": "1.0",
+  "raylib": "6.0",
+  "toolchain": "clang",
+  "layout": {
+    "toolchain": "sdk/toolchain/clang",
+    "raylib": "sdk/raylib/6.0"
+  },
+  "platforms": {
+    "windows-amd64": {
+      "raylibLib": "sdk/raylib/6.0/lib/windows-amd64",
+      "clangBin": "sdk/toolchain/clang/bin/clang.exe"
+    },
+    "linux-amd64": {
+      "raylibLib": "sdk/raylib/6.0/lib/linux-amd64",
+      "clangBin": "sdk/toolchain/clang/bin/clang"
+    },
+    "darwin-arm64": {
+      "raylibLib": "sdk/raylib/6.0/lib/darwin-arm64",
+      "clangBin": "sdk/toolchain/clang/bin/clang"
+    },
+    "darwin-amd64": {
+      "raylibLib": "sdk/raylib/6.0/lib/darwin-amd64",
+      "clangBin": "sdk/toolchain/clang/bin/clang"
+    }
+  },
+  "notes": "End-user distribution: native datadream binary + Clang + raylib. Does not include or require Go."
+}

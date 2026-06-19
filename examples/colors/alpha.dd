@@ -1,0 +1,23 @@
+// DataDream modern color system demo
+
+use raylib;
+
+fn main() {
+    InitWindow(800, 600, "DataDream Colors");
+    SetTargetFPS(60);
+
+    while !WindowShouldClose() {
+        BeginDrawing();
+
+        ClearBackground(#202020);
+
+        DrawRectangle(100, 100, 300, 200, rgba(255, 0, 0, 0.5));
+        DrawRectangle(200, 150, 300, 200, #0000FF80);
+
+        DrawText("Alpha colors", 20, 20, 24, colors.white);
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+}

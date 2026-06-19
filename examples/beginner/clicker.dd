@@ -1,0 +1,57 @@
+// Beginner tutorial — click the moving target with the mouse.
+// Build/run: datadream run examples/beginner/clicker.dd
+
+app "Clicker";
+
+window {
+    size: 800, 600;
+    title: "Click the circle!";
+    fps: 60;
+}
+
+let score = 0;
+let target = vec2(400, 300);
+let radius = 40.0;
+
+start {
+    target = random.point(screen.size);
+}
+
+update {
+    if input.pressed("escape") {
+        quit();
+    }
+
+    if input.mousePressed("left") {
+        let mouse = input.mouse();
+        if distance(mouse, target) < radius {
+            score += 1;
+            target = random.point(screen.size);
+        }
+    }
+}
+
+draw {
+    clear(colors.darkgray);
+
+    draw.circle({
+        position: target,
+        radius: radius,
+        color: colors.gold
+    });
+
+    draw.text("Score: {score}", {
+        position: vec2(20, 20),
+        size: 28,
+        color: colors.white
+    });
+
+    draw.text("Click the circle — ESC to quit", {
+        position: vec2(screen.width / 2, 40),
+        size: 20,
+        color: colors.lightgray,
+        align: "center"
+    });
+
+    draw.fps({ position: vec2(720, 10) });
+}

@@ -1,0 +1,20 @@
+// Raw raylib hello world — namespaced style
+// Requires raylib 6.0 installed and on include/lib path
+
+use raylib;
+
+fn main() {
+    raylib.InitWindow(800, 600, "Hello");
+    raylib.SetTargetFPS(60);
+
+    while !raylib.WindowShouldClose() {
+        raylib.BeginDrawing();
+
+        raylib.ClearBackground(raylib.BLACK);
+        raylib.DrawText("Hello World", 300, 280, 32, raylib.WHITE);
+
+        raylib.EndDrawing();
+    }
+
+    raylib.CloseWindow();
+}

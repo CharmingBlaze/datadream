@@ -1,0 +1,30 @@
+// loop, defer, match — core control flow (see docs/SYNTAX.md)
+use raylib;
+
+fn main() {
+    InitWindow(800, 450, "DataDream — control flow");
+    SetTargetFPS(60);
+    defer CloseWindow();
+
+    let mode = 0;
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        if IsKeyPressed(KEY_SPACE) {
+            mode = (mode + 1) % 3;
+        }
+
+        let bg = colors.raywhite;
+        match mode {
+            0 => { bg = colors.raywhite; }
+            1 => { bg = #101018; }
+            _ => { bg = colors.sky; }
+        }
+
+        BeginDrawing();
+        ClearBackground(bg);
+        DrawText("Space: change mode  |  loop + defer + match", 20, 20, 20, colors.darkgray);
+        EndDrawing();
+    }
+}

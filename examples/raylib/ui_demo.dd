@@ -1,0 +1,34 @@
+// Raygui ui.* wrapper demo — button + label
+// Run: datadream build ui_demo.dd -o ui_demo
+
+app "UI Demo";
+
+window {
+    size: 800, 600;
+    title: "DataDream UI";
+    fps: 60;
+}
+
+let clicks = 0;
+
+draw {
+    clear(#101018);
+
+    draw.text("DataDream ui.* (raygui)", {
+        position: vec2(20, 20),
+        size: 24,
+        color: colors.white
+    });
+
+    if ui.button("Click me", { position: vec2(20, 70), width: 140, height: 32 }) {
+        clicks += 1;
+    }
+
+    ui.label("Raygui label control", { position: vec2(20, 120), width: 260, height: 24 });
+
+    draw.text("Clicks: {clicks}", {
+        position: vec2(20, 560),
+        size: 18,
+        color: colors.lightgray
+    });
+}
