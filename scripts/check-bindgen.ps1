@@ -27,6 +27,24 @@ libs/raylib/raw.dd is out of date. Regenerate with:
     }
 
     & .\datadream.exe check --codegen libs\raylib\raw.dd
+
+    Write-Host "Verifying infer return-type map..."
+    $InfGen = [System.IO.Path]::GetTempFileName()
+    try {
+        go run ./tools/infergen/main.go -raw libs/raylib/raw.dd -out $InfGen
+        $infCommitted = Get-Content "internal\infer\raylib_returns_gen.go" -Raw
+        $infGenerated = Get-Content $InfGen -Raw
+        if ($infCommitted -ne $infGenerated) {
+            Write-Error @"
+internal/infer/raylib_returns_gen.go is out of date. Regenerate with:
+  cd internal/infer; go generate .
+"@
+        }
+    }
+    finally {
+        Remove-Item -Force $InfGen -ErrorAction SilentlyContinue
+    }
+
     Write-Host "Done: raw.dd matches bindgen output"
 }
 finally {

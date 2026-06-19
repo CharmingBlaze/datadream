@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"datadream/internal/ast"
 	"datadream/internal/colors"
+	"datadream/internal/infer"
 	"strings"
 )
 
@@ -150,110 +151,148 @@ func methodParamsC(g *Generator, selfType string, params []ast.Param) string {
 	return selfParam + ", " + extra
 }
 
-func (g *Generator) inferTypeFromExpr(node ast.Node) string {
-	switch n := node.(type) {
-	case *ast.IntLit:
-		return "int"
-	case *ast.FloatLit:
-		return "float"
-	case *ast.StringLit:
-		return "const char*"
-	case *ast.BoolLit:
-		return "bool"
-	case *ast.ColorLit:
-		return "Color"
-	case *ast.ArrayLit:
-		return "Array<" + g.inferArrayElemType(n) + ">"
-	case *ast.StructLit:
-		return n.TypeName
-	case *ast.CallExpr:
-		if ident, ok2 := n.Callee.(*ast.Ident); ok2 {
-			switch ident.Name {
-			case "vec2":
-				return "Vec2"
-			case "vec3":
-				return "Vec3"
-			case "vec4":
-				return "Vec4"
-			case "sprite", "Sprite":
-				return "Sprite"
-			case "sound":
-				return "SoundAsset"
-			case "distance", "length":
-				return "float"
-			case "rgb", "rgba", "hsl", "hsla", "css":
-				if colors.IsColorBuiltin(ident.Name) {
-					return "Color"
-				}
-			}
-		}
-		if field, ok2 := n.Callee.(*ast.FieldExpr); ok2 {
-			if obj, ok3 := field.Object.(*ast.Ident); ok3 {
-				switch obj.Name {
-				case "input":
-					if field.Field == "mouse" || field.Field == "move2d" || field.Field == "axis" {
-						return "Vec2"
-					}
-				case "random":
-					switch field.Field {
-					case "screenPosition", "point":
-						return "Vec2"
-					case "float":
-						return "float"
-					case "int":
-						return "int"
-					}
-				case "assets":
-					switch field.Field {
-					case "sound":
-						return "SoundAsset"
-					case "texture", "image":
-						return "Sprite"
-					}
-				case "ui":
-					switch field.Field {
-					case "button", "labelButton":
-						return "bool"
-					}
-				}
-			}
-		}
-		return "int"
-	case *ast.SpawnStmt:
-		return n.Entity + "_Entity*"
-	case *ast.FieldExpr:
-		if ident, ok := n.Object.(*ast.Ident); ok {
-			if ident.Name == "colors" {
-				if _, ok := colors.ResolveNamespace(n.Field); ok {
-					return "Color"
-				}
-			}
-			if g.varTypes != nil {
-				if t, ok := g.varTypes[ident.Name]; ok {
-					if strings.HasSuffix(t, "_Entity*") {
-						entityName := strings.TrimSuffix(t, "_Entity*")
-						return g.entityFieldType(entityName, n.Field)
-					}
-					if t == "Sprite" && n.Field == "position" {
-						return "Vec2"
-					}
-				}
-			}
-		}
-		if inner, ok := n.Object.(*ast.FieldExpr); ok {
-			if ident, ok := inner.Object.(*ast.Ident); ok && g.varTypes != nil {
-				if t, ok := g.varTypes[ident.Name]; ok && strings.HasSuffix(t, "_Entity*") {
-					if inner.Field == "tex" && n.Field == "position" {
-						return "Vec2"
-					}
-				}
-			}
-		}
-		if n.Field == "position" {
-			return "Vec2"
-		}
-		return "int"
-	default:
-		return "int"
+func langTypeName(t *ast.TypeExpr) string {
+	if t == nil {
+		return ""
 	}
+	if t.Name == "sprite" {
+		return "Sprite"
+	}
+	return t.Name
+}
+
+func (g *Generator) inferContext() *infer.Context {
+	return &infer.Context{
+		Vars:    g.varTypes,
+		Fns:     g.fnReturns,
+		Structs: g.structFieldTypes,
+	}
+}
+
+func (g *Generator) inferTypeFromExpr(node ast.Node) string {
+	if t := g.inferTypeSpecial(node); t != "" {
+		return t
+	}
+	if t := infer.Expr(node, g.inferContext()); t != "" {
+		return t
+	}
+	return "int"
+}
+
+func (g *Generator) inferTypeSpecial(node ast.Node) string {
+	f, ok := node.(*ast.FieldExpr)
+	if !ok {
+		return ""
+	}
+	if ident, ok := f.Object.(*ast.Ident); ok {
+		if ident.Name == "colors" && f.Field != "" {
+			if _, ok := colors.ResolveNamespace(f.Field); ok {
+				return "Color"
+			}
+		}
+		if g.varTypes != nil {
+			if t, ok := g.varTypes[ident.Name]; ok {
+				if strings.HasSuffix(t, "_Entity*") {
+					entityName := strings.TrimSuffix(t, "_Entity*")
+					return g.entityFieldType(entityName, f.Field)
+				}
+			}
+		}
+	}
+	if inner, ok := f.Object.(*ast.FieldExpr); ok {
+		if ident, ok := inner.Object.(*ast.Ident); ok && g.varTypes != nil {
+			if t, ok := g.varTypes[ident.Name]; ok && strings.HasSuffix(t, "_Entity*") {
+				if inner.Field == "tex" && f.Field == "position" {
+					return "Vec2"
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func (g *Generator) paramVarTypes(params []ast.Param) map[string]string {
+	overlay := make(map[string]string, len(params))
+	for _, p := range params {
+		t := "int"
+		if p.Type != nil {
+			t = langTypeName(p.Type)
+		}
+		overlay[p.Name] = t
+	}
+	return overlay
+}
+
+func (g *Generator) withParamScope(params []ast.Param, fn func()) {
+	g.withVarTypesOverlay(g.paramVarTypes(params), fn)
+}
+
+func (g *Generator) withVarTypesOverlay(overlay map[string]string, fn func()) {
+	if len(overlay) == 0 {
+		fn()
+		return
+	}
+	if g.varTypes == nil {
+		g.varTypes = map[string]string{}
+	}
+	saved := make(map[string]string, len(overlay))
+	for name, t := range overlay {
+		saved[name] = g.varTypes[name]
+		g.varTypes[name] = t
+	}
+	fn()
+	for name, prev := range saved {
+		if prev == "" {
+			delete(g.varTypes, name)
+		} else {
+			g.varTypes[name] = prev
+		}
+	}
+}
+
+func (g *Generator) isVec3Expr(node ast.Node) bool {
+	if node == nil {
+		return false
+	}
+	if t := infer.Expr(node, g.inferContext()); t == "Vec3" || t == "Vector3" {
+		return true
+	}
+	if call, ok := node.(*ast.CallExpr); ok {
+		if ident, ok := call.Callee.(*ast.Ident); ok && ident.Name == "vec3" {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *Generator) emitVectorLength(arg ast.Node) {
+	if g.isVec3Expr(arg) {
+		g.emit("Vector3Length(")
+	} else {
+		g.emit("Vector2Length(")
+	}
+	g.genExpr(arg)
+	g.emit(")")
+}
+
+func (g *Generator) emitVectorNormalize(arg ast.Node) {
+	if g.isVec3Expr(arg) {
+		g.emit("Vector3Normalize(")
+	} else {
+		g.emit("Vector2Normalize(")
+	}
+	g.genExpr(arg)
+	g.emit(")")
+}
+
+func (g *Generator) emitVectorDistance(a, b ast.Node) {
+	if g.isVec3Expr(a) || g.isVec3Expr(b) {
+		g.emit("Vector3Distance(")
+	} else {
+		g.emit("Vector2Distance(")
+	}
+	g.genExpr(a)
+	g.emit(", ")
+	g.genExpr(b)
+	g.emit(")")
 }

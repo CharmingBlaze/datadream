@@ -205,6 +205,7 @@ examples/raylib/hello_selective.dd
 examples/raylib/hello_using.dd
 examples/raylib/import_demo.dd
 examples/raylib/language_features.dd
+examples/raylib/mario64_demo.dd
 examples/raylib/match_destruct.dd
 examples/raylib/string_for_in.dd
 examples/raylib/ui_demo.dd

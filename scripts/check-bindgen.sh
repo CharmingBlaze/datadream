@@ -27,4 +27,15 @@ if ! diff -q "$GEN" libs/raylib/raw.dd >/dev/null; then
 fi
 
 ./datadream check --codegen libs/raylib/raw.dd
+
+echo "Verifying infer return-type map..."
+INF="$(mktemp)"
+go run ./tools/infergen/main.go -raw libs/raylib/raw.dd -out "$INF"
+if ! diff -q "$INF" internal/infer/raylib_returns_gen.go >/dev/null; then
+  echo "error: internal/infer/raylib_returns_gen.go is out of date. Regenerate with:" >&2
+  echo "  cd internal/infer && go generate ." >&2
+  diff -u internal/infer/raylib_returns_gen.go "$INF" | head -40
+  exit 1
+fi
+
 echo "Done: raw.dd matches bindgen output"

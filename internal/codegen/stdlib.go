@@ -53,25 +53,17 @@ func (g *Generator) genMathNamespaceCall(method string, args []ast.Node) bool {
 		}
 	case "normalize":
 		if len(args) >= 1 {
-			g.emit("Vector2Normalize(")
-			g.genExpr(args[0])
-			g.emit(")")
+			g.emitVectorNormalize(args[0])
 			return true
 		}
 	case "length":
 		if len(args) >= 1 {
-			g.emit("Vector2Length(")
-			g.genExpr(args[0])
-			g.emit(")")
+			g.emitVectorLength(args[0])
 			return true
 		}
 	case "distance":
 		if len(args) >= 2 {
-			g.emit("Vector2Distance(")
-			g.genExpr(args[0])
-			g.emit(", ")
-			g.genExpr(args[1])
-			g.emit(")")
+			g.emitVectorDistance(args[0], args[1])
 			return true
 		}
 	case "lerp":

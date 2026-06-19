@@ -1,0 +1,303 @@
+// Mario 64-style 3D platformer demo — primitives only, no model files.
+// WASD move · Space jump · mouse orbit · collect coins · reach the flag
+use raylib;
+
+fn draw_mario(x: float, y: float, z: float) {
+    // Shadow
+    DrawCylinder(vec3(x, 0.02, z), 0.55, 0.55, 0.01, 16, Color { r: 0, g: 0, b: 0, a: 60 });
+
+    // Boots
+    DrawCube(vec3(x - 0.22, y + 0.12, z), 0.28, 0.18, 0.38, BROWN);
+    DrawCube(vec3(x + 0.22, y + 0.12, z), 0.28, 0.18, 0.38, BROWN);
+
+    // Overalls + shirt
+    DrawCylinder(vec3(x, y + 0.55, z), 0.38, 0.42, 0.65, 12, RED);
+    DrawCube(vec3(x, y + 0.78, z), 0.52, 0.32, 0.34, BLUE);
+
+    // Head + cap
+    DrawSphere(vec3(x, y + 1.18, z), 0.34, Color { r: 255, g: 203, b: 164, a: 255 });
+    DrawCylinder(vec3(x, y + 1.38, z), 0.36, 0.34, 0.18, 12, RED);
+    DrawCube(vec3(x + 0.28, y + 1.42, z), 0.12, 0.08, 0.06, RED);
+
+    // Face
+    DrawCube(vec3(x + 0.32, y + 1.12, z), 0.08, 0.06, 0.06, Color { r: 220, g: 160, b: 120, a: 255 });
+    DrawCube(vec3(x + 0.30, y + 1.04, z), 0.18, 0.04, 0.10, BLACK);
+}
+
+fn ground_height(x: float, z: float) -> float {
+    // Main field
+    let h: float = 0.0;
+
+    // Hill (bob-omb battlefield vibe)
+    let hx: float = x + 6.0;
+    let hz: float = z + 4.0;
+    let hill: float = hx * hx + hz * hz;
+    if hill < 16.0 {
+        let bump: float = 2.2 * (1.0 - hill / 16.0);
+        if bump > h { h = bump; }
+    }
+
+    // Floating brick platform
+    if x > 3.5 && x < 7.5 && z > 5.5 && z < 9.5 {
+        if h < 1.5 { h = 1.5; }
+    }
+
+    // Stair blocks toward the flag
+    if x > -1.5 && x < 1.5 && z > 8.0 && z < 9.2 { if h < 0.5 { h = 0.5; } }
+    if x > -1.5 && x < 1.5 && z > 9.2 && z < 10.4 { if h < 1.0 { h = 1.0; } }
+    if x > -1.5 && x < 1.5 && z > 10.4 && z < 11.6 { if h < 1.5 { h = 1.5; } }
+
+    return h;
+}
+
+fn draw_level() {
+    // Sky tint ground + hills
+    DrawPlane(vec3(0.0, 0.0, 0.0), vec2(80.0, 80.0), Color { r: 90, g: 170, b: 70, a: 255 });
+
+    // Hill mesh
+    DrawSphere(vec3(-6.0, 1.8, -4.0), 3.2, Color { r: 70, g: 150, b: 55, a: 255 });
+    DrawSphereWires(vec3(-6.0, 1.8, -4.0), 3.2, 8, 16, Color { r: 40, g: 110, b: 35, a: 255 });
+
+    // Brick platform
+    DrawCube(vec3(5.5, 1.0, 7.5), 4.0, 1.0, 4.0, Color { r: 180, g: 100, b: 50, a: 255 });
+    DrawCubeWires(vec3(5.5, 1.0, 7.5), 4.0, 1.0, 4.0, MAROON);
+
+    // Stair blocks
+    DrawCube(vec3(0.0, 0.25, 8.6), 3.0, 0.5, 1.0, Color { r: 200, g: 110, b: 60, a: 255 });
+    DrawCube(vec3(0.0, 0.75, 9.8), 3.0, 0.5, 1.0, Color { r: 200, g: 110, b: 60, a: 255 });
+    DrawCube(vec3(0.0, 1.25, 11.0), 3.0, 0.5, 1.0, Color { r: 200, g: 110, b: 60, a: 255 });
+
+    // Flag pole
+    DrawCylinder(vec3(0.0, 1.5, 13.0), 0.08, 0.08, 3.0, 8, GRAY);
+    DrawCube(vec3(0.6, 2.8, 13.0), 1.2, 0.7, 0.08, Color { r: 50, g: 120, b: 220, a: 255 });
+
+    // Decorative clouds (billboard-ish spheres)
+    DrawSphere(vec3(-12.0, 8.0, -8.0), 2.0, Color { r: 255, g: 255, b: 255, a: 220 });
+    DrawSphere(vec3(10.0, 9.0, -10.0), 2.5, Color { r: 255, g: 255, b: 255, a: 220 });
+    DrawSphere(vec3(4.0, 7.5, 6.0), 1.8, Color { r: 255, g: 255, b: 255, a: 220 });
+}
+
+fn main() {
+    InitWindow(960, 540, "DataDream — Mario 64 Demo");
+    SetTargetFPS(60);
+    defer CloseWindow();
+    DisableCursor();
+
+    let px: float = 0.0;
+    let py: float = 1.0;
+    let pz: float = -2.0;
+    let vy: float = 0.0;
+    let coins = 0;
+    let won = false;
+
+    let c1 = false;
+    let c2 = false;
+    let c3 = false;
+    let c4 = false;
+    let c5 = false;
+    let c6 = false;
+
+    let camera = Camera3D {
+        position: vec3(0.0, 4.0, -8.0),
+        target: vec3(0.0, 1.0, 0.0),
+        up: vec3(0.0, 1.0, 0.0),
+        fovy: 45.0,
+        projection: CAMERA_PERSPECTIVE
+    };
+
+    // Orbit offset from Mario (world space) — updated by mouse
+    let off_x: float = 0.0;
+    let off_y: float = 2.9;
+    let off_z: float = -6.0;
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        let dt: float = GetFrameTime();
+        let move: float = 8.0 * dt;
+        let jump: float = 8.5;
+
+        // Mouse orbit (before movement so view matches this frame)
+        let mouse: Vec2 = GetMouseDelta();
+        let wheel: float = GetMouseWheelMove();
+
+        let yaw: float = -mouse.x * 0.004;
+        let nx: float = off_x + yaw * off_z;
+        let nz: float = off_z - yaw * off_x;
+        off_x = nx;
+        off_z = nz;
+
+        let horiz: float = length(vec2(off_x, off_z));
+        let pitch: float = -mouse.y * 0.004;
+        if horiz > 0.01 {
+            let ny: float = off_y + pitch * horiz;
+            let nh: float = horiz - pitch * off_y;
+            off_x = off_x * (nh / horiz);
+            off_z = off_z * (nh / horiz);
+            off_y = ny;
+        } else {
+            off_y = off_y + pitch * 6.0;
+        }
+
+        if off_y < -1.0 { off_y = -1.0; }
+        if off_y > 10.0 { off_y = 10.0; }
+
+        let horiz2: float = length(vec2(off_x, off_z));
+        let dist: float = length(vec2(horiz2, off_y));
+        if dist < 0.01 {
+            off_x = 0.0;
+            off_y = 3.0;
+            off_z = -8.0;
+            dist = 8.5;
+        }
+        let new_dist: float = dist + wheel * 0.9;
+        if new_dist < 4.0 { new_dist = 4.0; }
+        if new_dist > 22.0 { new_dist = 22.0; }
+        let scale: float = new_dist / dist;
+        off_x = off_x * scale;
+        off_y = off_y * scale;
+        off_z = off_z * scale;
+
+        // Camera-relative walk directions on XZ (away from camera = forward)
+        let fwd_x: float = -off_x;
+        let fwd_z: float = -off_z;
+        let fwd_len: float = length(vec2(fwd_x, fwd_z));
+        if fwd_len > 0.01 {
+            fwd_x = fwd_x / fwd_len;
+            fwd_z = fwd_z / fwd_len;
+        } else {
+            fwd_x = 0.0;
+            fwd_z = 1.0;
+        }
+        let side_x: float = -fwd_z;
+        let side_z: float = fwd_x;
+
+        let walk_x: float = 0.0;
+        let walk_z: float = 0.0;
+        if IsKeyDown(KEY_W) || IsKeyDown(KEY_UP) {
+            walk_x += fwd_x;
+            walk_z += fwd_z;
+        }
+        if IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN) {
+            walk_x -= fwd_x;
+            walk_z -= fwd_z;
+        }
+        if IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT) {
+            walk_x += side_x;
+            walk_z += side_z;
+        }
+        if IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT) {
+            walk_x -= side_x;
+            walk_z -= side_z;
+        }
+
+        let walk_len: float = length(vec2(walk_x, walk_z));
+        if walk_len > 0.01 {
+            walk_x = walk_x / walk_len;
+            walk_z = walk_z / walk_len;
+        }
+
+        if !won {
+            px += walk_x * move;
+            pz += walk_z * move;
+            if IsKeyPressed(KEY_SPACE) && py <= ground_height(px, pz) + 0.05 {
+                vy = jump;
+            }
+
+            vy -= 24.0 * dt;
+            py += vy * dt;
+
+            let ground: float = ground_height(px, pz);
+            if py <= ground {
+                py = ground;
+                vy = 0.0;
+            }
+
+            // Coin collection (distance squared < 1.1)
+            if !c1 {
+                let dx: float = px - (-4.0);
+                let dz: float = pz - (-2.0);
+                if dx * dx + dz * dz < 1.1 {
+                    c1 = true;
+                    coins += 1;
+                }
+            }
+            if !c2 {
+                let dx: float = px - (-6.5);
+                let dz: float = pz - (-3.5);
+                if dx * dx + dz * dz < 1.1 {
+                    c2 = true;
+                    coins += 1;
+                }
+            }
+            if !c3 {
+                let dx: float = px - 5.5;
+                let dz: float = pz - 7.5;
+                if dx * dx + dz * dz < 1.1 {
+                    c3 = true;
+                    coins += 1;
+                }
+            }
+            if !c4 {
+                let dx: float = px - 0.0;
+                let dz: float = pz - 8.8;
+                if dx * dx + dz * dz < 1.1 {
+                    c4 = true;
+                    coins += 1;
+                }
+            }
+            if !c5 {
+                let dx: float = px - 0.0;
+                let dz: float = pz - 10.0;
+                if dx * dx + dz * dz < 1.1 {
+                    c5 = true;
+                    coins += 1;
+                }
+            }
+            if !c6 {
+                let dx: float = px - 0.0;
+                let dz: float = pz - 11.2;
+                if dx * dx + dz * dz < 1.1 {
+                    c6 = true;
+                    coins += 1;
+                }
+            }
+
+            if pz > 12.5 && px > -2.0 && px < 2.0 {
+                won = true;
+            }
+        }
+
+        // Camera follows Mario
+        let look_y: float = py + 1.1;
+        camera.target = vec3(px, look_y, pz);
+        camera.position = vec3(px + off_x, look_y + off_y, pz + off_z);
+        camera.up = vec3(0.0, 1.0, 0.0);
+
+        BeginDrawing();
+        ClearBackground(Color { r: 120, g: 190, b: 255, a: 255 });
+
+        BeginMode3D(camera);
+        draw_level();
+
+        if !c1 { DrawSphere(vec3(-4.0, ground_height(-4.0, -2.0) + 1.2, -2.0), 0.35, GOLD); }
+        if !c2 { DrawSphere(vec3(-6.5, ground_height(-6.5, -3.5) + 1.2, -3.5), 0.35, GOLD); }
+        if !c3 { DrawSphere(vec3(5.5, 2.2, 7.5), 0.35, GOLD); }
+        if !c4 { DrawSphere(vec3(0.0, 1.2, 8.8), 0.35, GOLD); }
+        if !c5 { DrawSphere(vec3(0.0, 1.7, 10.0), 0.35, GOLD); }
+        if !c6 { DrawSphere(vec3(0.0, 2.2, 11.2), 0.35, GOLD); }
+
+        draw_mario(px, py, pz);
+        EndMode3D();
+
+        DrawText("WASD move  |  Mouse 3D orbit  |  Scroll zoom", 12, 10, 18, DARKBLUE);
+        DrawText(TextFormat("Pos: %.1f, %.1f", px, pz), 12, 28, 16, DARKGRAY);
+        DrawText(TextFormat("Coins: %d / 6", coins), 12, 48, 20, BLACK);
+        if won {
+            DrawText("Course clear! You reached the flag!", 12, 76, 22, DARKGREEN);
+        } else {
+            DrawText("Climb the steps and touch the flag pole", 12, 76, 18, DARKGRAY);
+        }
+        EndDrawing();
+    }
+}

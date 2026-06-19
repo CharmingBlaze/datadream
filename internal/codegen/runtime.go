@@ -106,6 +106,25 @@ func (g *Generator) collectDecls(prog *ast.Program) {
 				methods[m.Name] = true
 			}
 			g.structMethods[n.Name] = methods
+			if g.structFieldTypes == nil {
+				g.structFieldTypes = map[string]map[string]string{}
+			}
+			fieldTypes := map[string]string{}
+			for _, f := range n.Fields {
+				t := "int"
+				if f.Type != nil {
+					t = langTypeName(f.Type)
+				}
+				fieldTypes[f.Name] = t
+			}
+			g.structFieldTypes[n.Name] = fieldTypes
+		case *ast.FnDecl:
+			if n.Name != "" && n.RetType != nil {
+				if g.fnReturns == nil {
+					g.fnReturns = map[string]string{}
+				}
+				g.fnReturns[n.Name] = langTypeName(n.RetType)
+			}
 		case *ast.EntityDecl:
 			g.entities = append(g.entities, n.Name)
 			if g.hasAttr(n.Attrs, "packed") {

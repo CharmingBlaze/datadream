@@ -157,18 +157,12 @@ func (g *Generator) tryGenMathCall(c *ast.CallExpr) bool {
 		}
 	case "distance":
 		if len(c.Args) >= 2 && g.usesRaylib {
-			g.emit("Vector2Distance(")
-			g.genExpr(c.Args[0])
-			g.emit(", ")
-			g.genExpr(c.Args[1])
-			g.emit(")")
+			g.emitVectorDistance(c.Args[0], c.Args[1])
 			return true
 		}
 	case "length":
 		if len(c.Args) >= 1 && g.usesRaylib {
-			g.emit("Vector2Length(")
-			g.genExpr(c.Args[0])
-			g.emit(")")
+			g.emitVectorLength(c.Args[0])
 			return true
 		}
 	case "quit":

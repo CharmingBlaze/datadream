@@ -58,6 +58,8 @@ type Generator struct {
 	entitySelfPtr       bool
 	windowCfg       windowSettings
 	varTypes        map[string]string
+	fnReturns       map[string]string
+	structFieldTypes map[string]map[string]string
 	topLevel        bool
 	deferredGlobalInits []string
 	deferStack          []ast.Node

@@ -32,7 +32,9 @@ func (g *Generator) genFnDecl(fn *ast.FnDecl) {
 	savedDefers := g.deferStack
 	g.deferStack = nil
 	g.deferScopeMarks = nil
-	g.genStmts(fn.Body)
+	g.withParamScope(fn.Params, func() {
+		g.genStmts(fn.Body)
+	})
 	g.deferStack = savedDefers
 	g.topLevel = prevTop
 	g.indent--
@@ -68,9 +70,13 @@ func (g *Generator) genStructDecl(s *ast.StructDecl) {
 		}
 		g.emit("\n%s %s_%s(%s) {\n", ret, s.Name, m.Name, params)
 		g.indent++
-		for _, st := range m.Body {
-			g.genNode(st)
-		}
+		overlay := g.paramVarTypes(m.Params)
+		overlay["self"] = s.Name + "*"
+		g.withVarTypesOverlay(overlay, func() {
+			for _, st := range m.Body {
+				g.genNode(st)
+			}
+		})
 		g.indent--
 		g.emit("}\n")
 	}
@@ -175,9 +181,11 @@ func (g *Generator) genEntityDecl(e *ast.EntityDecl) {
 		g.emit("\n%s %s_%s(%s) {\n", ret, e.Name, m.Name, params)
 		g.indent++
 		g.withEntitySelf(e.Name, func() {
-			for _, st := range m.Body {
-				g.genNode(st)
-			}
+			g.withParamScope(m.Params, func() {
+				for _, st := range m.Body {
+					g.genNode(st)
+				}
+			})
 		})
 		g.indent--
 		g.emit("}\n")

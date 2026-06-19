@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"datadream/internal/ast"
+	"datadream/internal/infer"
 )
 
 // Error is a single type-check diagnostic.
@@ -23,10 +24,12 @@ func Check(prog *ast.Program) []Error {
 		return nil
 	}
 	c := &checker{
-		structs:  map[string]map[string]bool{},
-		entities: map[string]map[string]string{},
-		enums:    map[string]map[string]bool{},
-		consts:   map[string]bool{},
+		structs:     map[string]map[string]bool{},
+		structTypes: map[string]map[string]string{},
+		entities:    map[string]map[string]string{},
+		enums:       map[string]map[string]bool{},
+		consts:      map[string]bool{},
+		fnReturns:   map[string]string{},
 	}
 	c.collectDecls(prog)
 	c.detectAppRaylib(prog)
@@ -43,10 +46,12 @@ type checker struct {
 	globals    map[string]string
 	scopes     []map[string]string
 	structs    map[string]map[string]bool
+	structTypes map[string]map[string]string
 	entities   map[string]map[string]string
 	enums      map[string]map[string]bool
 	consts     map[string]bool
 	fns        map[string]bool
+	fnReturns  map[string]string
 	modules      map[string]bool
 	qualifiedImports map[string]bool
 	usingMods    []string
@@ -72,10 +77,20 @@ func (c *checker) collectDecls(prog *ast.Program) {
 		switch n := node.(type) {
 		case *ast.StructDecl:
 			fields := map[string]bool{}
+			fieldTypes := map[string]string{}
 			for _, f := range n.Fields {
 				fields[f.Name] = true
+				t := "int"
+				if f.Type != nil {
+					t = typeName(f.Type)
+				}
+				fieldTypes[f.Name] = t
 			}
 			c.structs[n.Name] = fields
+			if c.structTypes == nil {
+				c.structTypes = map[string]map[string]string{}
+			}
+			c.structTypes[n.Name] = fieldTypes
 		case *ast.EntityDecl:
 			fields := map[string]string{
 				"position": "Vec3",
@@ -96,6 +111,12 @@ func (c *checker) collectDecls(prog *ast.Program) {
 		case *ast.FnDecl:
 			if n.Name != "" {
 				c.fns[n.Name] = true
+				if c.fnReturns == nil {
+					c.fnReturns = map[string]string{}
+				}
+				if n.RetType != nil {
+					c.fnReturns[n.Name] = typeName(n.RetType)
+				}
 			}
 		case *ast.EnumDecl:
 			variants := map[string]bool{}
@@ -764,131 +785,59 @@ func (c *checker) inferType(node ast.Node) string {
 	if node == nil {
 		return ""
 	}
-	switch n := node.(type) {
-	case *ast.IntLit:
-		return "int"
-	case *ast.FloatLit:
-		return "float"
-	case *ast.StringLit:
-		return "const char*"
-	case *ast.BoolLit:
-		return "bool"
-	case *ast.CallExpr:
-		if ident, ok := n.Callee.(*ast.Ident); ok {
-			switch ident.Name {
-			case "vec2":
-				return "Vec2"
-			case "vec3":
-				return "Vec3"
-			case "vec4":
-				return "Vec4"
-			case "sprite", "Sprite":
-				return "Sprite"
-			case "sound":
-				return "SoundAsset"
+	if f, ok := node.(*ast.FieldExpr); ok {
+		if t := c.inferFieldType(f); t != "" {
+			return t
+		}
+	}
+	return infer.Expr(node, c.inferContext())
+}
+
+func (c *checker) inferFieldType(f *ast.FieldExpr) string {
+	if ident, ok := f.Object.(*ast.Ident); ok {
+		if c.enums != nil {
+			if variants, ok := c.enums[ident.Name]; ok && variants[f.Field] {
+				return ident.Name
 			}
 		}
-		if field, ok := n.Callee.(*ast.FieldExpr); ok {
-			if obj, ok := field.Object.(*ast.Ident); ok {
-				switch obj.Name {
-				case "input":
-					switch field.Field {
-					case "mouse", "move2d", "axis":
-						return "Vec2"
-					case "scroll", "wheel":
-						return "float"
-					case "pressed", "down", "released", "mousePressed", "mouseDown", "mouseReleased":
-						return "bool"
-					}
-				case "random":
-					switch field.Field {
-					case "screenPosition", "point":
-						return "Vec2"
-					case "float":
-						return "float"
-					case "int":
-						return "int"
-					}
-				case "assets":
-					switch field.Field {
-					case "sound":
-						return "SoundAsset"
-					case "texture", "image":
-						return "Sprite"
-					}
-				case "ui":
-					switch field.Field {
-					case "button", "labelButton":
-						return "bool"
-					}
-				case "time":
-					switch field.Field {
-					case "fps":
-						return "int"
-					case "now", "elapsed", "frame":
-						return "float"
-					}
-				case "math":
-					switch field.Field {
-					case "dot", "cross", "normalize", "length", "distance", "lerp", "clamp":
-						return "float"
-					}
-				case "collision":
-					switch field.Field {
-					case "overlap", "contains", "pointInRect", "circle":
-						return "bool"
-					}
-				case "screen":
-					switch field.Field {
-					case "width", "height":
-						return "float"
-					case "center", "size":
-						return "Vec2"
+		if typ, ok := c.lookup(ident.Name); ok {
+			if strings.HasSuffix(typ, "_Entity*") {
+				entityName := strings.TrimSuffix(typ, "_Entity*")
+				if fields, ok := c.entities[entityName]; ok {
+					if t, ok := fields[f.Field]; ok {
+						return t
 					}
 				}
 			}
 		}
-	case *ast.StructLit:
-		return n.TypeName
-	case *ast.ArrayLit:
-		return "Array<" + inferArrayElemType(n) + ">"
-	case *ast.SpawnStmt:
-		return n.Entity + "_Entity*"
-	case *ast.FieldExpr:
-		if ident, ok := n.Object.(*ast.Ident); ok {
-			if c.enums != nil {
-				if variants, ok := c.enums[ident.Name]; ok && variants[n.Field] {
-					return ident.Name
-				}
-			}
-			if typ, ok := c.lookup(ident.Name); ok {
-				if strings.HasSuffix(typ, "_Entity*") {
-					entityName := strings.TrimSuffix(typ, "_Entity*")
-					if fields, ok := c.entities[entityName]; ok {
-						if t, ok := fields[n.Field]; ok {
-							return t
-						}
-					}
-				}
-				if typ == "Sprite" && n.Field == "position" {
+	}
+	if inner, ok := f.Object.(*ast.FieldExpr); ok {
+		if ident, ok := inner.Object.(*ast.Ident); ok {
+			if typ, ok := c.lookup(ident.Name); ok && strings.HasSuffix(typ, "_Entity*") {
+				if inner.Field == "tex" && f.Field == "position" {
 					return "Vec2"
 				}
 			}
 		}
-		if inner, ok := n.Object.(*ast.FieldExpr); ok {
-			if ident, ok := inner.Object.(*ast.Ident); ok {
-				if typ, ok := c.lookup(ident.Name); ok && strings.HasSuffix(typ, "_Entity*") {
-					if inner.Field == "tex" && n.Field == "position" {
-						return "Vec2"
-					}
-				}
-			}
-		}
-		if n.Field == "position" {
-			return "Vec2"
-		}
 	}
 	return ""
+}
+
+func (c *checker) inferContext() *infer.Context {
+	vars := map[string]string{}
+	for k, v := range c.globals {
+		vars[k] = v
+	}
+	for _, scope := range c.scopes {
+		for k, v := range scope {
+			vars[k] = v
+		}
+	}
+	return &infer.Context{
+		Vars:    vars,
+		Fns:     c.fnReturns,
+		Structs: c.structTypes,
+	}
 }
 
 func isRaylibSymbol(name string) bool {
