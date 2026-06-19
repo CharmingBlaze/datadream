@@ -72,12 +72,16 @@ func (p *Parser) parseLet() *ast.LetStmt {
 		p.advance()
 		typeHint = p.parseType()
 	}
-	p.expect(lexer.TOKEN_EQ)
 	var val ast.Node
-	if p.check(lexer.TOKEN_SPAWN) {
-		val = p.parseSpawn()
-	} else {
-		val = p.parseExpr()
+	if p.check(lexer.TOKEN_EQ) {
+		p.advance()
+		if p.check(lexer.TOKEN_SPAWN) {
+			val = p.parseSpawn()
+		} else {
+			val = p.parseExpr()
+		}
+	} else if typeHint == nil {
+		p.expect(lexer.TOKEN_EQ)
 	}
 	p.eatSemi()
 	return ast.NewLetStmt(name, typeHint, val, p.pos0())
@@ -206,7 +210,7 @@ func (p *Parser) parseMatch() *ast.MatchStmt {
 			p.expect(lexer.TOKEN_FAT_EQ)
 			stmt.Default = p.parseInlineOrBlock()
 		} else {
-			pat := p.parseExpr()
+			pat := p.parseMatchPattern()
 			if ident, ok := pat.(*ast.Ident); ok && ident.Name == "_" {
 				p.expect(lexer.TOKEN_FAT_EQ)
 				stmt.Default = p.parseInlineOrBlock()
@@ -229,6 +233,37 @@ func (p *Parser) parseInlineOrBlock() []ast.Node {
 	expr := p.parseExpr()
 	p.eatSemi()
 	return []ast.Node{&ast.ExprStmt{Expr: expr}}
+}
+
+// parseMatchPattern parses equality patterns and struct destructuring (Type { x, y }).
+func (p *Parser) parseMatchPattern() ast.Node {
+	if p.check(lexer.TOKEN_IDENT) && p.peekAhead(1).Type == lexer.TOKEN_LBRACE {
+		return p.parseStructPattern()
+	}
+	return p.parseExpr()
+}
+
+func (p *Parser) parseStructPattern() *ast.StructLit {
+	pos := p.pos0()
+	typeName := p.expectIdent()
+	p.expect(lexer.TOKEN_LBRACE)
+	fields := map[string]ast.Node{}
+	for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
+		key := p.expectIdent()
+		if p.check(lexer.TOKEN_COLON) {
+			p.advance()
+			fields[key] = p.parseObjectFieldValue()
+		} else {
+			fields[key] = ast.NewIdent(key, pos)
+		}
+		if p.check(lexer.TOKEN_COMMA) {
+			p.advance()
+		} else if !p.check(lexer.TOKEN_RBRACE) {
+			p.errorAt(p.peek(), "expected ',' between struct pattern fields")
+		}
+	}
+	p.expect(lexer.TOKEN_RBRACE)
+	return &ast.StructLit{TypeName: typeName, Fields: fields, IsPattern: true}
 }
 
 func (p *Parser) parseOnEvent() *ast.OnEventStmt {

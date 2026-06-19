@@ -1,0 +1,42 @@
+{
+  "name": "datadream",
+  "displayName": "DataDream",
+  "description": "Syntax highlighting for DataDream (.dd) game language files",
+  "version": "0.1.0",
+  "publisher": "datadream",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "datadream",
+        "aliases": [
+          "DataDream",
+          "datadream"
+        ],
+        "extensions": [
+          ".dd"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "datadream",
+        "scopeName": "source.datadream",
+        "path": "./syntaxes/datadream.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "DataDream Studio",
+        "uiTheme": "vs-dark",
+        "path": "./themes/datadream-studio-color-theme.json"
+      }
+    ]
+  }
+}

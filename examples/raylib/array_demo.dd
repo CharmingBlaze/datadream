@@ -1,0 +1,38 @@
+// Array<T> demo — push, len, for-in iteration, struct elements
+use raylib;
+
+struct Point {
+    x: float;
+    y: float;
+}
+
+fn main() {
+    InitWindow(400, 300, "Array demo");
+    defer CloseWindow();
+
+    let nums: Array<int>;
+    nums.push(10);
+    nums.push(20);
+    nums.push(30);
+
+    let points: Array<Point>;
+    points.push(Point { x: 1.0, y: 2.0 });
+    points.push(Point { x: 3.0, y: 4.0 });
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        let sum = 0;
+        for n in nums {
+            sum += n;
+        }
+        for p in points {
+            sum += 1;
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText(TextFormat("sum=%d count=%d", sum, nums.len()), 10, 10, 20, BLACK);
+        EndDrawing();
+    }
+}

@@ -12,13 +12,15 @@ const (
 	StageCodegen   Stage = "codegen"
 )
 
-// Diagnostic is a single frontend error.
+// Diagnostic is a single frontend error or warning.
 type Diagnostic struct {
 	Stage   Stage
 	File    string
 	Line    int
 	Col     int
 	Message string
+	Hint    string
+	Warning bool
 }
 
 // Result is the output of the frontend pipeline.
@@ -30,5 +32,10 @@ type Result struct {
 }
 
 func (r *Result) HasErrors() bool {
-	return len(r.Errors) > 0
+	for _, d := range r.Errors {
+		if !d.Warning {
+			return true
+		}
+	}
+	return false
 }

@@ -1,0 +1,10 @@
+// Module with exports — private helpers are not visible to importers.
+use raylib;
+
+let _padding = 8;
+
+export let panel_color = colors.sky;
+
+export fn panel_title() -> string {
+    return "Exported module";
+}

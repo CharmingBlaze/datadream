@@ -14,7 +14,13 @@ func (g *Generator) genLifecycleBlock(block *ast.LifecycleBlock) {
 	g.indent++
 	prevTop := g.topLevel
 	g.topLevel = false
+	if block.Name == "update" || block.Name == "draw" {
+		g.pushPerFrameLifecycle()
+	}
 	g.genStmts(block.Body)
+	if block.Name == "update" || block.Name == "draw" {
+		g.popPerFrameLifecycle()
+	}
 	g.topLevel = prevTop
 	g.indent--
 	g.emit("}\n")

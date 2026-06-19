@@ -17,6 +17,7 @@ func (g *Generator) analyzeRuntimeUsage(prog *ast.Program) {
 		g.analyzeNodeUsage(node)
 		switch n := node.(type) {
 		case *ast.SceneDecl:
+			g.usesLevelArena = true
 			h := sceneHooks{name: n.Name, init: len(n.Stmts) > 0}
 			h.start = n.HasStart
 			h.update = n.HasUpdate
@@ -76,9 +77,13 @@ func (g *Generator) analyzeNodeUsage(node ast.Node) {
 			g.analyzeNodeUsage(s)
 		}
 	case *ast.ForInStmt:
+		if n.Kind == ast.IterArray {
+			g.needsArrayRuntime = true
+		}
 		for _, s := range n.Body {
 			g.analyzeNodeUsage(s)
 		}
+		g.analyzeExprUsage(n.Iter)
 	case *ast.ForRangeStmt:
 		g.analyzeExprUsage(n.From)
 		g.analyzeExprUsage(n.To)

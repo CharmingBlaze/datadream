@@ -1,0 +1,34 @@
+# DataDream — quick start
+
+Everything you need is in this folder. **No Go, Python, or extra installs.**
+
+## Windows
+
+1. Unzip the download.
+2. Double-click **`Start DataDream Studio.bat`** or **`DataDream Studio.exe`**.
+3. The IDE opens with sample projects — press **Ctrl+Enter** to run code.
+
+## Linux
+
+1. Unzip the download.
+2. Run: `chmod +x start-studio.sh && ./start-studio.sh`
+3. Press **Ctrl+Enter** to run code.
+
+## macOS
+
+1. Unzip the download.
+2. Double-click **`DataDream Studio.app`** (in the folder root or under `bin/`).
+3. Press **Cmd+Enter** to run code.
+
+## What's included
+
+| Component | Location |
+|-----------|----------|
+| IDE (Studio) | Root launcher or `bin/datadream-studio` |
+| Compiler CLI | `bin/datadream` |
+| Clang + raylib SDK | `sdk/` |
+| Examples | `examples/` |
+
+Works offline after download (no internet required).
+
+Optional: add `bin/` to your PATH and run `datadream doctor` from a terminal.

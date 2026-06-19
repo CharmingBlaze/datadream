@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"datadream/internal/compiler"
@@ -39,27 +38,25 @@ func cmdCheck(args []string) int {
 		return 1
 	}
 
-	reporter := errors.NewReporter()
-	reporter.LoadSource(file, source)
-
 	diags := compiler.Check(compiler.CheckOptions{
 		SourceFile: file,
 		Source:     source,
 		Codegen:    codegen,
 	})
 
-	for _, d := range diags {
-		if d.File != "" {
-			reporter.Error(d.File, d.Line, d.Col, d.Message)
-		} else {
-			fmt.Fprintln(os.Stderr, d.Message)
-		}
-	}
+	reporter := errors.NewReporter()
+	reporter.LoadSource(file, source)
+	reportCompilerDiagnostics(reporter, diags)
 
 	if reporter.HasErrors() {
 		fmt.Print(reporter.Format(true))
 		fmt.Printf("\n✗ Found %d error(s)\n", reporter.ErrorCount())
 		return 1
+	}
+
+	if reporter.WarningCount() > 0 {
+		fmt.Print(reporter.Format(true))
+		fmt.Printf("⚠ Found %d warning(s)\n", reporter.WarningCount())
 	}
 
 	if codegen {

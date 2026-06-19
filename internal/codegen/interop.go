@@ -2,9 +2,9 @@ package codegen
 
 import (
 	"strings"
-	"unicode"
 
 	"datadream/internal/ast"
+	"datadream/internal/pkg"
 	"datadream/internal/sdk"
 )
 
@@ -18,9 +18,10 @@ func (g *Generator) initInterop() {
 func (g *Generator) genUseStmt(u *ast.UseStmt) {
 	g.initInterop()
 	g.imports[u.Path] = u.Alias
+	g.registerUseWhitelist(u.Path, u.Symbols)
 
 	header := moduleHeader(u.Path)
-	if u.Path != "raylib" && u.Path != "graphics" {
+	if u.Path != "raylib" && u.Path != "graphics" && !g.isDataDreamModule(u.Path) {
 		g.emit("#include <%s>\n", header)
 	}
 
@@ -35,14 +36,87 @@ func (g *Generator) genUseStmt(u *ast.UseStmt) {
 	}
 }
 
-func (g *Generator) isExternAPICall(name string) bool {
+func (g *Generator) registerUseWhitelist(path string, symbols []string) {
+	if len(symbols) == 0 {
+		if g.useWhitelist == nil {
+			g.useWhitelist = map[string]map[string]bool{}
+		}
+		g.useWhitelist[path] = nil
+		return
+	}
+	if g.useWhitelist == nil {
+		g.useWhitelist = map[string]map[string]bool{}
+	}
+	allowed := map[string]bool{}
+	for _, s := range symbols {
+		allowed[s] = true
+	}
+	g.useWhitelist[path] = allowed
+}
+
+func (g *Generator) importPathFor(name string) string {
+	switch name {
+	case "raylib", "graphics", "rl":
+		if name == "rl" {
+			for path, alias := range g.imports {
+				if alias == "rl" {
+					return path
+				}
+			}
+			return "raylib"
+		}
+		return name
+	}
+	for path, alias := range g.imports {
+		if alias == name || path == name {
+			return path
+		}
+	}
+	return name
+}
+
+func (g *Generator) symbolAllowedInModule(path, symbol string) bool {
+	if g.useWhitelist == nil {
+		return true
+	}
+	wl, ok := g.useWhitelist[path]
+	if !ok {
+		return true
+	}
+	if wl == nil {
+		return true
+	}
+	return wl[symbol]
+}
+
+func (g *Generator) isAllowedUnqualifiedSymbol(name string) bool {
 	if !g.isUsingImported() {
 		return false
 	}
 	if g.userFns != nil && g.userFns[name] {
 		return false
 	}
-	return isCAPISymbol(name)
+	for _, mod := range g.usingMods {
+		if !g.symbolAllowedInModule(mod, name) {
+			continue
+		}
+		if isCAPISymbol(name) || g.isWhitelistedConstant(mod, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *Generator) isWhitelistedConstant(mod, name string) bool {
+	wl := g.useWhitelist[mod]
+	if wl == nil {
+		return false
+	}
+	return wl[name]
+}
+
+func (g *Generator) isExternAPICall(name string) bool {
+	return g.isAllowedUnqualifiedSymbol(name)
 }
 
 func (g *Generator) genUsingStmt(u *ast.UsingStmt) {
@@ -124,7 +198,11 @@ func (g *Generator) resolveCalleeName(callee ast.Node) (string, bool) {
 	case *ast.FieldExpr:
 		if mod, ok := c.Object.(*ast.Ident); ok {
 			if g.isImportedModule(mod.Name) {
-				return c.Field, true
+				path := g.importPathFor(mod.Name)
+				if g.symbolAllowedInModule(path, c.Field) {
+					return c.Field, true
+				}
+				return "", false
 			}
 		}
 	}
@@ -145,12 +223,20 @@ func isCAPISymbol(name string) bool {
 	if name == "" {
 		return false
 	}
-	// SCREAMING_SNAKE names are constants, not functions.
+	// ALL_CAPS constants are handled via whitelist / isWhitelistedConstant
 	if strings.Contains(name, "_") && name == strings.ToUpper(name) {
 		return false
 	}
-	r := rune(name[0])
-	return unicode.IsUpper(r)
+	if name[0] < 'A' || name[0] > 'Z' {
+		return false
+	}
+	for _, r := range name[1:] {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (g *Generator) trackMain(fn *ast.FnDecl) {
@@ -176,6 +262,18 @@ func (g *Generator) emitExternArg(arg ast.Node) {
 		return
 	}
 	g.genExpr(arg)
+}
+
+func (g *Generator) isDataDreamModule(path string) bool {
+	if g.sourceFile == "" {
+		return false
+	}
+	root := pkg.FindProjectRoot(g.sourceFile)
+	if root == "" {
+		return false
+	}
+	_, ok := pkg.ModuleSourcePath(root, path)
+	return ok
 }
 
 func moduleHeader(path string) string {

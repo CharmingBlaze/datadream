@@ -106,24 +106,26 @@ Build bottom-up per [DESIGN.md](DESIGN.md). Do not skip layers.
 
 1. **Raw language + raylib** — `fn main`, `use raylib`, struct literals, 2D/3D raw demos ✅ mostly done
 2. **C interop + bindgen** — `extern c`, `datadream bind`, package linking ✅ mostly done
-3. **Quality of life** — colors, vec2/3, interpolation, operators, **loop/defer/match**, errors, fmt 🟡 in progress
-4. **Friendly wrappers** — app/window/draw, input, screen, sprites, random, math, time, audio/assets partial 🟡 2D works; ui.* pending
-5. **Engine sugar** — scenes, entities, raygui `ui.*`, editor ❌ after Layer 4 solid on all platforms
+3. **Quality of life** — colors, vec2/3, interpolation, operators, **loop/defer/match**, **typecheck + error hints** 🟡 parser/lexer hints pending
+4. **Friendly wrappers** — app/window/draw, input, screen, sprites, random, math, time, **audio/assets**, **ui.*** ✅
+5. **Engine sugar** — scenes, entities, ECS, method calls ✅ · editor ❌ future
 
 ## Success criteria for “language complete” (v1)
 
 - [x] `datadream build` works on Windows with bundled SDK
-- [ ] `datadream build` works on Linux/macOS with bundled SDK (CI verifies Linux + macOS; local `sdk install` still required for offline use)
-- [x] Friendly app examples build on Windows (`hello_friendly`, `coin-runner`)
-- [x] Raw raylib examples build on Windows (`hello_raw`, `hello_using`)
+- [x] `datadream build` works on Linux/macOS (CI verifies; bundled `sdk install clang` for offline use)
+- [x] Friendly app examples build on all CI platforms (`hello_friendly`, `coin-runner`)
+- [x] Raw raylib examples build (`hello_raw`, `hello_3d`, `hello_using`)
 - [x] Color system works in friendly and raw modes
-- [ ] `datadream check` catches all codegen errors by default (today: `--codegen` flag)
+- [x] `datadream check` runs lex + parse + **typecheck** by default; `--codegen` adds C emission
 - [x] `datadream bind raylib.h --raw` regenerates `libs/raylib/raw.dd`
-- [x] Multi-file programs via `include "file.dd";`
+- [x] Multi-file programs via `include "file.dd";` (textual; `export fn` planned)
 - [x] Core control flow: `loop`, `defer`, `match` ([SYNTAX.md](SYNTAX.md))
-- [x] Type checker pass (at least for builtins and struct fields)
-- [ ] Entity/scene lifecycle generates correct C
+- [x] Type checker pass (builtins, struct fields, namespace methods)
+- [x] Entity/scene lifecycle generates correct C (spawn, for-in, systems, methods)
 - [x] `datadream sdk install clang` populates bundled toolchain
+- [x] Windows cold-install from release zip (bundled Clang, no system compiler)
+- [x] Linux + macOS cold-install via CI dist-verify · GitHub v1.0 release workflow ready (publish on tag or manual dispatch)
 
 ## Branding
 

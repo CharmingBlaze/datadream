@@ -57,6 +57,7 @@ const (
 	TOKEN_INCLUDE
 	TOKEN_IMPORT
 	TOKEN_EXTERN
+	TOKEN_EXPORT
 	TOKEN_ASYNC
 	TOKEN_AWAIT
 	TOKEN_PRELOAD
@@ -141,7 +142,7 @@ var tokenNames = map[TokenType]string{
 	TOKEN_MODULE: "module", TOKEN_LINK: "link", TOKEN_CONST: "const",
 	TOKEN_C: "c", TOKEN_BANG: "!", TOKEN_AMP: "&",
 	TOKEN_INCLUDE: "include", TOKEN_IMPORT: "import",
-	TOKEN_EXTERN: "extern", TOKEN_ASYNC: "async", TOKEN_AWAIT: "await",
+	TOKEN_EXTERN: "extern", TOKEN_EXPORT: "export", TOKEN_ASYNC: "async", TOKEN_AWAIT: "await",
 	TOKEN_PRELOAD: "preload", TOKEN_ENUM: "enum", TOKEN_MATCH: "match",
 	TOKEN_DATA: "data", TOKEN_SHADER: "shader", TOKEN_UI: "ui",
 	TOKEN_STATE: "state", TOKEN_ASSET: "asset", TOKEN_NETWORK: "network",
@@ -182,7 +183,7 @@ var keywords = map[string]TokenType{
 	"module": TOKEN_MODULE, "link": TOKEN_LINK, "const": TOKEN_CONST,
 	"c": TOKEN_C, "cstring": TOKEN_IDENT,
 	"include": TOKEN_INCLUDE, "import": TOKEN_IMPORT,
-	"extern": TOKEN_EXTERN, "async": TOKEN_ASYNC, "await": TOKEN_AWAIT,
+	"extern": TOKEN_EXTERN, "export": TOKEN_EXPORT, "async": TOKEN_ASYNC, "await": TOKEN_AWAIT,
 	"preload": TOKEN_PRELOAD, "enum": TOKEN_ENUM, "match": TOKEN_MATCH,
 	"data": TOKEN_DATA, "shader": TOKEN_SHADER, "ui": TOKEN_UI,
 	"state": TOKEN_STATE, "asset": TOKEN_ASSET, "network": TOKEN_NETWORK,

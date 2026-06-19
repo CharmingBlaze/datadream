@@ -1,0 +1,25 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "datadream-studio",
+  "outputfilename": "datadream-studio",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "frontend:dir": "frontend",
+  "wailsjsdir": "frontend",
+  "build:dir": "build",
+  "author": {
+    "name": "DataDream"
+  },
+  "info": {
+    "companyName": "DataDream",
+    "productName": "DataDream Studio",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright © DataDream",
+    "comments": "IDE for the DataDream language"
+  },
+  "debounceMS": 100,
+  "devServer": "",
+  "version": "2"
+}

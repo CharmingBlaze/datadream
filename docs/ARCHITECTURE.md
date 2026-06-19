@@ -23,7 +23,7 @@ How DataDream turns `.dd` source into a native binary.
 ┌──────────────┐
 │     AST      │  internal/ast/
 └──────┬───────┘
-       │  optional Phase[] (typecheck — not yet)
+       │  Phase[] (typecheck — default in check)
        ▼
 ┌──────────────┐
 │   codegen    │  internal/codegen/
@@ -42,7 +42,7 @@ Orchestration: `internal/compiler/pipeline.go`
 
 | Command | Stages |
 |---------|--------|
-| `datadream check file.dd` | lex + parse (+ optional Phases) |
+| `datadream check file.dd` | lex + parse + typecheck |
 | `datadream check --codegen file.dd` | above + codegen (no link) |
 | `datadream build file.dd` | full pipeline + driver |
 
@@ -84,21 +84,45 @@ Orchestration: `internal/compiler/pipeline.go`
 | `runtime.go` | C header, types, color runtime |
 | `game_runtime.go` | Sprite, input, collision helpers |
 | `draw.go` | `draw.text/rect/circle/line/sprite` → raylib |
-| `expr.go` | Expressions, builtins, namespaces |
+| `expr.go` | Expressions, builtins, namespaces, **method calls** |
 | `stmts.go` | Statements, vec2 `+=`, loop/match/defer, const vs runtime global `let` |
-| `decls.go` | Structs, entities, scenes |
+| `array.go` | **`DD_Array` runtime**, `for x in array`, `for ch in string`, array methods |
+| `arena.go` | Frame arena (`dd_frame_arena_reset`) + level arena on scene init |
+| `attrs.go` | `@packed` / `@save` attribute codegen stubs |
+| `decls.go` | Structs, entities, scenes, **methods** |
 | `interop.go` | `use raylib`, extern calls |
-| `types.go` | DataDream → C type mapping |
+| `types.go` | DataDream → C type mapping, **methodParamsC** |
 
 ### `internal/compiler`
 
 ```go
 compiler.Compile(opts)   // full pipeline → C + link flags
-compiler.Check(opts)     // lex + parse; opts.Codegen = true for codegen
+compiler.Check(opts)     // lex + parse + typecheck; opts.Codegen = true for codegen
 compiler.ReadSource(path) // include expansion
 ```
 
-Extension point:
+Default pipeline includes `typecheckPhase` in `Pipeline.Phases`.
+
+### `internal/typecheck`
+
+- Runs as a compiler `Phase` before codegen
+- Validates builtins, namespace methods, struct literals, entity fields
+- **`forin.go`** — `resolveForIn()` sets `ForInStmt.Kind` (`IterEntity`, `IterArray`, `IterString`); warns on `.remove()` during array iteration
+- **`Error.Warning`** — non-blocking diagnostics; pipeline continues to codegen
+- `hints.go` — suggested fixes attached to diagnostics
+
+### `internal/errors`
+
+- `Reporter` — Rust/Elm-style formatted output (snippet, caret, hint)
+- Supports **errors** and **warnings** (`WarningHint`, yellow prefix)
+- Used by `datadream check` and compile error paths via `internal/cli/diagnostics.go`
+
+### `cmd/datadream`
+
+- Thin `main` → `internal/cli.Run(os.Args[1:])`
+- Must stay tracked in git (`.gitignore` uses `/datadream`, not `datadream`)
+
+### Extension point
 
 ```go
 type Phase interface {
@@ -170,9 +194,47 @@ Windows: full path to `libraylib.a`; MinGW Clang required (or `-target` fallback
 
 ---
 
-## Include system
+## `for x in …` disambiguation
 
-`include "path.dd";` is **textual** preprocessing in `compiler/source.go` — not a module system. Future: exports via `use`.
+The parser emits one node type for all collection iteration:
+
+```go
+type ForInStmt struct {
+    Value    string   // loop binding
+    Iter     Node     // expression after "in"
+    Kind     IterKind // filled by type checker
+    ElemType string   // for IterArray
+    Entity   string   // for IterEntity
+}
+```
+
+| User syntax | `IterKind` | Codegen |
+|-------------|------------|---------|
+| `for e in Enemy` | `IterEntity` | ECS registry loop (`ecs.go`) |
+| `for x in arr` / `[1,2,3]` | `IterArray` | `DD_Array` index loop (`array.go`) |
+| `for ch in "hi"` / `str` | `IterString` | C string byte loop (`array.go`) |
+| `for i in 0..10` | *(separate `ForRangeStmt`)* | numeric for-loop |
+
+Range loops use `ForRangeStmt`, not `ForInStmt`.
+
+---
+
+## Memory arenas (app programs)
+
+| Arena | Reset | Emitted in |
+|-------|-------|------------|
+| Frame | Start of each frame | `arena.go` → `dd_frame_arena_reset()` |
+| Level | Scene init | `arena.go` → `dd_level_arena_reset()` |
+
+Used for scratch strings and level-scoped spawn data. See [LANGUAGE.md](LANGUAGE.md).
+
+---
+
+## Module system
+
+- `use graphics;` resolves via `internal/pkg/resolver.go` + `compiler/modules.go`
+- **`export fn` / `export let`** — `compiler/modules_export.go` filters visible symbols
+- `include "path.dd"` remains textual preprocessing in `compiler/source.go`
 
 ---
 
@@ -194,7 +256,9 @@ Prefer codegen unit tests before full builds.
 
 1. `examples/raylib/hello_friendly.dd` — target UX
 2. `examples/coin-runner/game.dd` — game loop + sprites
-3. `internal/codegen/app_emit.go` — generated main
-4. `internal/codegen/game_runtime.go` — sprite/input runtime
-5. `internal/compiler/pipeline.go` — wiring
-6. `internal/sdk/fetch_clang.go` — SDK install
+3. `examples/raylib/array_demo.dd` — `Array<T>` + for-in
+4. `internal/codegen/app_emit.go` — generated main
+5. `internal/typecheck/forin.go` — iterable disambiguation
+6. `internal/codegen/array.go` — `DD_Array` + for-in codegen
+7. `internal/compiler/pipeline.go` — wiring
+8. `docs/HANDOFF.md` — full state for next programmer

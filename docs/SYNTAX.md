@@ -98,7 +98,7 @@ For tutorials and friendly APIs, see [LANGUAGE.md](LANGUAGE.md). For design rati
 | `else` | alternative branch; also default arm in `match` (`else =>`) | 1 | ✅ |
 | `while` | loop while condition is true | 1 | ✅ |
 | **`loop`** | **explicit infinite loop** — cleaner than `while true` | 1 | ✅ emits `while (1)` |
-| `for` | numeric range or collection iteration | 1 | ✅ range; 🟡 `for x in arr` |
+| `for` | numeric range or collection iteration | 1 | ✅ range + entity + array + string |
 | `in` | range / iteration binding | 1 | ✅ |
 | **`break`** | exit innermost loop | 1 | ✅ |
 | **`continue`** | next loop iteration | 1 | ✅ |
@@ -147,7 +147,17 @@ match state {
 }
 ```
 
-Today: equality patterns only (compiles to C `if` / `else if`). Destructuring and type patterns are planned.
+Today: equality patterns compile to C `if` / `else if`. **Struct destructuring** binds fields in each arm:
+
+```dd
+match v {
+    Vec2d { x: 0.0, y } => { /* y is bound */ }
+    Vec2d { x, y } => { /* x and y bound */ }
+    _ => { }
+}
+```
+
+Type patterns and full `@`-attribute ECS layout are planned.
 
 ---
 
@@ -160,6 +170,8 @@ Today: equality patterns only (compiles to C `if` / `else if`). Destructuring an
 | `fn` | function | 1 | ✅ |
 | `struct` | user struct | 1 | ✅ |
 | `enum` | enumeration | 1 | 🟡 |
+| `@save` | struct attribute — binary serialize/deserialize via `fwrite`/`fread` | 1 | ✅ |
+| `@packed` | entity attribute — struct-of-arrays pool (`EntityPool` + `idx` handle) | 5 | ✅ |
 | `return` | return from function | 1 | ✅ |
 
 ```dd
@@ -199,8 +211,10 @@ Raylib C types (`Vector2`, `Camera3D`, `Color`, …) are used via `use raylib;` 
 | `use` | import module / library into scope | ✅ |
 | `using` | same as `use` for name injection | ✅ |
 | `as` | import alias (`use raylib as rl`) | ✅ |
+| `{ … }` | selective import (`use raylib { InitWindow, DrawText }`) | ✅ |
 | `module` | declare module | 🟡 |
 | `include` | textual include of another `.dd` file | ✅ |
+| `export` | mark module `fn` / `let` as public API | ✅ |
 | `import` | module-only access (planned) | ❌ |
 | `extern` | foreign declarations | ✅ |
 | `c` | C ABI marker in `extern c { }` | ✅ |
@@ -209,6 +223,9 @@ Raylib C types (`Vector2`, `Camera3D`, `Color`, …) are used via `use raylib;` 
 ```dd
 use raylib;
 include "utils.dd";
+
+export fn helper() -> int { return 1; }
+export let shared = 0;
 
 extern c {
     link "raylib";
@@ -255,14 +272,14 @@ These keywords expand to raylib init, main loop, and draw calls. They are **not*
 | **`start`** | runs once at startup | **5** | ✅ |
 | **`update`** | per-frame logic (`dt` available) | **5** | ✅ |
 | **`draw`** | per-frame rendering (after update) | **5** | ✅ |
-| **`scene`** | named scene with optional lifecycle | **5** | 🟡 |
-| **`entity`** | component-style game object | **5** | 🟡 |
-| **`spawn`** | create entity instance | **5** | 🟡 |
-| **`destroy`** | free entity | **5** | 🟡 |
-| **`self`** | current entity in entity methods | **5** | 🟡 |
-| **`system`** | ECS system block | **5** | 🟡 |
-| **`on`** | event handler (`on key "space" { }`) | **5** | 🟡 |
-| **`ui`** | raygui wrapper namespace | **5** | ❌ |
+| **`scene`** | named scene with optional lifecycle | **5** | ✅ |
+| **`entity`** | component-style game object | **5** | ✅ |
+| **`spawn`** | create entity instance | **5** | ✅ |
+| **`destroy`** | free entity | **5** | ✅ |
+| **`self`** | current entity in entity methods | **5** | ✅ |
+| **`system`** | ECS system block | **5** | ✅ |
+| **`on`** | event handler (`on key "space" { }`) | **5** | ✅ |
+| **`ui`** | raygui wrapper namespace (`ui.*` calls) | **4** | ✅ |
 
 ```dd
 app "Coin Runner";
@@ -322,13 +339,20 @@ Present in the lexer for forward compatibility; no codegen yet unless noted:
 
 ---
 
-## Quick comparison: three loop styles
+## Quick comparison: loop and iteration styles
 
-| Style | When to use |
-|-------|-------------|
-| `loop { }` | Game frame pump, server accept loop, “run forever” |
-| `while cond { }` | Condition may become false (`!WindowShouldClose()`) |
-| `for i in 0..n { }` | Indexed iteration |
+| Style | When to use | Loop variable |
+|-------|-------------|---------------|
+| `loop { }` | Game frame pump, “run forever” | — |
+| `while cond { }` | Condition may become false | — |
+| `for i in 0..n { }` | Indexed numeric range | `int` |
+| `for e in Enemy { }` | All live ECS instances | `Enemy_Entity*` |
+| `for x in arr { }` | Dynamic or literal array | scalar or struct/entity pointer |
+| `for ch in "hi" { }` | String bytes (UTF-8, not graphemes) | `byte` — **not** `c` (keyword) |
+
+Types: `Array<T>` or sugar `list T` (e.g. `list Enemy`). See [LANGUAGE.md](LANGUAGE.md) § Arrays.
+
+Disambiguation for `for x in …` happens in the **type checker** (`IterKind`), not the parser.
 
 ---
 

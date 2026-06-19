@@ -36,6 +36,7 @@ func (g *Generator) analyzeProgram(prog *ast.Program) {
 			if n.Path == "raylib" || n.Path == "graphics" {
 				g.usesRaylib = true
 			}
+			g.registerUseWhitelist(n.Path, n.Symbols)
 			if n.Alias == "" {
 				g.usingMods = append(g.usingMods, n.Path)
 			}
@@ -62,6 +63,10 @@ func (g *Generator) finalizeAnalysis() {
 		g.usesRaylib = true
 		if g.hasUpdate || g.hasStart || g.needsECSUpdateLoop() {
 			g.needsGameRuntime = true
+		}
+		g.usesFrameArena = true
+		if len(g.scenes) > 0 {
+			g.usesLevelArena = true
 		}
 		if len(g.linkLibs) == 0 {
 			g.linkLibs = append(g.linkLibs, sdk.RaylibLinkLibs()...)

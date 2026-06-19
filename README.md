@@ -8,17 +8,34 @@ Compile to native C, link with bundled Clang + raylib 6.0. Wrap C libraries with
 
 ## Quick start (end users)
 
-```bash
-datadream sdk install clang
-datadream sdk install raylib
-datadream doctor
+Download the latest release for your platform from [GitHub Releases](https://github.com/CharmingBlaze/datadream/releases):
 
+| Platform | Zip |
+|----------|-----|
+| Windows | `datadream-windows-amd64.zip` |
+| Linux | `datadream-linux-amd64.zip` |
+| macOS (Apple Silicon) | `datadream-darwin-arm64.zip` |
+
+Extract the zip, add `bin/` to your PATH (or set `DATADREAM_ROOT` to the extract folder), then:
+
+```bash
+datadream doctor
+datadream new my-game
+cd my-game
+datadream run game.dd
+```
+
+Try the bundled examples:
+
+```bash
 datadream run examples/raylib/hello_friendly.dd
 datadream run examples/beginner/clicker.dd
 datadream build examples/coin-runner/game.dd -o coin-runner
 ```
 
-No Go install required. Set `DATADREAM_ROOT` to the distribution root if auto-detection fails.
+No Go install required. Windows release zips include bundled Clang (~188 MB). On Linux/macOS, run `datadream sdk install clang` once if the zip was built without bundled toolchain.
+
+**Syntax highlighting:** install the VS Code extension from `editor/datadream/` (Open Folder → Run Extension), or point your editor at `syntaxes/datadream.tmLanguage.json`.
 
 **Documentation:** [docs/README.md](docs/README.md) · [docs/SYNTAX.md](docs/SYNTAX.md) (keywords & operators) · **Next programmer:** [docs/HANDOFF.md](docs/HANDOFF.md)
 
@@ -55,6 +72,7 @@ draw {
 | Doc | Purpose |
 |-----|---------|
 | [docs/HANDOFF.md](docs/HANDOFF.md) | **Start here** — state, blockers, sprint plan |
+| [docs/NEXT_SESSION_PROMPT.md](docs/NEXT_SESSION_PROMPT.md) | Paste into a new agent chat |
 | [docs/SYNTAX.md](docs/SYNTAX.md) | Keywords, operators, literals by layer |
 | [docs/VISION.md](docs/VISION.md) | Goals and anti-goals |
 | [docs/LANGUAGE.md](docs/LANGUAGE.md) | Syntax and APIs (source of truth) |
@@ -68,15 +86,33 @@ draw {
 
 ## Current status (June 2026)
 
-| ✅ Works (Windows) | 🔄 In progress |
-|-------------------|----------------|
-| Bundled SDK (`sdk install clang/raylib`) | Linux/macOS builds |
-| Friendly apps + coin-runner + beginner clicker | Type checker |
-| Raw raylib + bindgen + `hello_3d` | Entity/scene ECS |
-| `loop` / `defer` / `match` control flow | CI + release zips |
-| Full friendly namespaces (`commands.dd`) | `ui.*` raygui wrapper |
-| Color system | Module exports |
-| `check --codegen` on all examples | Default `check` = parse-only |
+| ✅ Works | 🔄 Remaining for v1 ship |
+|----------|--------------------------|
+| Bundled SDK + release zips (Win/Linux/macOS CI) | **Publish v1.0 GitHub Release** ([PUBLISH.md](docs/PUBLISH.md)) |
+| Friendly apps, coin-runner, ECS, `@packed`/`@save` | GitHub Release v1.0.0 |
+| Raw raylib + bindgen + `hello_3d` | LSP (hover, go-to-def) |
+| `loop` / `defer` / `match`, struct/entity methods | Selective `use raylib { … }` |
+| **`Array<T>` / `list T` + `for x in array`** | Codegen error hints (typecheck ✅) |
+| Type checker + warnings + friendly error hints | |
+| `export fn` / `export let`, frame/level arenas | |
+| Windows/Linux/macOS cold-install (CI dist-verify) | |
+| `datadream new` + VS Code syntax highlighting | |
+
+## Building from source (contributors)
+
+```bash
+go build -o datadream ./cmd/datadream
+go test ./internal/...
+```
+
+Requires Go 1.22+. Entry point: `cmd/datadream/main.go`. See [docs/SETUP.md](docs/SETUP.md).
+
+Release zip (maintainers):
+
+```powershell
+.\scripts\build-dist.ps1
+.\scripts\verify-dist.ps1 dist\datadream-windows-amd64.zip
+```
 
 ## Raylib interop
 
@@ -111,19 +147,6 @@ datadream/
   libs/raylib/raw.dd
 ```
 
-## Building from source (contributors)
-
-```bash
-go build -o datadream ./cmd/datadream
-go test ./internal/colors/...
-go test ./internal/codegen/...
-go test ./internal/parser/...
-```
-
-Requires Go 1.22+. See [docs/SETUP.md](docs/SETUP.md).
-
-Release zip (maintainers): `.\scripts\build-dist.ps1`
-
 ## Examples
 
 ```bash
@@ -140,4 +163,6 @@ cd examples/coin-runner && ../../datadream build game.dd -o coin-runner
 | `examples/raylib/commands.dd` | All friendly namespaces |
 | `examples/coin-runner/game.dd` | Sprites, input, collision |
 | `examples/raylib/hello_raw.dd` | Raw raylib |
+| `examples/raylib/array_demo.dd` | `Array<T>`, push, for-in, struct pointers |
+| `examples/raylib/string_for_in.dd` | String byte iteration |
 | `examples/colors/css_demo.dd` | CSS color names |

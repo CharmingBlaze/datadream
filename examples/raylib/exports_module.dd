@@ -1,0 +1,29 @@
+// Module exports — `use demoexports;` inlines only export fn / export let (+ use raylib).
+// Run: datadream check --codegen exports_module.dd
+
+use demoexports;
+
+app "Exports";
+
+window {
+    size: 800, 600;
+    title: "Module exports";
+    fps: 60;
+}
+
+draw {
+    clear(colors.black);
+
+    draw.text(panel_title(), {
+        position: vec2(20, 20),
+        size: 24,
+        color: colors.white
+    });
+
+    draw.rect({
+        position: vec2(20, 60),
+        width: 200,
+        height: 80,
+        color: panel_color
+    });
+}

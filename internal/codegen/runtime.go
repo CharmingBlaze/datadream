@@ -77,6 +77,15 @@ func (g *Generator) emitHeader(appName string) {
 	g.emit("#define datadream_print(...) printf(__VA_ARGS__)\n")
 	g.emit("static const char* datadream_cstr(const char* s) { return s; }\n")
 	g.emit("\n")
+	if g.usesFrameArena {
+		g.emitFrameArenaRuntime()
+	}
+	if g.usesLevelArena {
+		g.emitLevelArenaRuntime()
+	}
+	if g.needsArrayRuntime {
+		g.emitArrayRuntime()
+	}
 	g.emitColorRuntime()
 	g.emitGameRuntime()
 	g.emitStdlibRuntime()
@@ -89,11 +98,33 @@ func (g *Generator) collectDecls(prog *ast.Program) {
 		switch n := node.(type) {
 		case *ast.StructDecl:
 			g.structs = append(g.structs, n.Name)
+			if g.structMethods == nil {
+				g.structMethods = map[string]map[string]bool{}
+			}
+			methods := map[string]bool{}
+			for _, m := range n.Methods {
+				methods[m.Name] = true
+			}
+			g.structMethods[n.Name] = methods
 		case *ast.EntityDecl:
 			g.entities = append(g.entities, n.Name)
+			if g.hasAttr(n.Attrs, "packed") {
+				if g.packedEntities == nil {
+					g.packedEntities = map[string]bool{}
+				}
+				g.packedEntities[n.Name] = true
+			}
 			if g.entityFields == nil {
 				g.entityFields = map[string]map[string]string{}
 			}
+			if g.entityMethods == nil {
+				g.entityMethods = map[string]map[string]bool{}
+			}
+			methods := map[string]bool{}
+			for _, m := range n.Methods {
+				methods[m.Name] = true
+			}
+			g.entityMethods[n.Name] = methods
 			fields := map[string]string{
 				"position": "Vec3",
 				"velocity": "Vec3",

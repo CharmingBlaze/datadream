@@ -1,0 +1,25 @@
+// @save struct serialization + @packed entity SoA layout
+use raylib;
+
+@save struct SaveData {
+    score: int;
+    level: int;
+}
+
+@packed entity Bullet {
+    draw {
+        draw.circle({ position: vec2(self.position.x, self.position.y), radius: 4.0, color: colors.gold });
+    }
+}
+
+app "Attributes";
+
+window {
+    size: 400, 300;
+    title: "Attribute stubs";
+}
+
+draw {
+    clear(colors.black);
+    draw.text("@save + @packed", { position: vec2(40, 140), size: 20, color: colors.white });
+}

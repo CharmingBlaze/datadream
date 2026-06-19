@@ -1,0 +1,26 @@
+// String for-in — byte iteration (UTF-8 bytes, not graphemes)
+use raylib;
+
+fn main() {
+    InitWindow(400, 300, "string for-in");
+    defer CloseWindow();
+
+    let msg: string = "hello";
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        let count = 0;
+        for ch in msg {
+            count += 1;
+        }
+        for ch in "hi" {
+            count += 1;
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText(TextFormat("bytes=%d", count), 10, 10, 20, BLACK);
+        EndDrawing();
+    }
+}

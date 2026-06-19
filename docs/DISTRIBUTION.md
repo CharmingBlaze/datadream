@@ -18,8 +18,16 @@ How DataDream is packaged for **end users** who never install Go.
 ```
 datadream/                      ← DATADREAM_ROOT
   bin/
-    datadream.exe               ← Windows
-    datadream                   ← Linux/macOS
+    datadream.exe               ← Windows CLI
+    datadream                   ← Linux/macOS CLI
+    datadream-studio.exe        ← Windows IDE (Wails)
+    datadream-studio            ← Linux IDE
+    datadream-studio.app/       ← macOS IDE bundle
+  GETTING_STARTED.txt           ← one-page quick start (also at root)
+  Start DataDream Studio.bat    ← Windows double-click launcher
+  DataDream Studio.exe          ← Windows IDE (root copy)
+  start-studio.sh               ← Linux launcher
+  DataDream Studio.app/         ← macOS launcher copy (optional)
   sdk/
     manifest.json
     toolchain/clang/            ← populated by sdk install clang (~700 MB)
@@ -70,6 +78,23 @@ datadream build examples/coin-runner/game.dd -o coin-runner
 
 ```powershell
 .\scripts\build-dist.ps1
+.\scripts\verify-dist.ps1 dist\datadream-windows-amd64.zip
+```
+
+This builds **DataDream Studio** (`datadream-studio`) via Wails and packs it into `bin/` alongside the CLI.
+
+To omit the IDE from a zip (smaller artifact):
+
+```powershell
+.\scripts\build-dist.ps1 -SkipStudio
+# or: ./packdist --out dist/....zip --skip-studio
+```
+
+Or on Linux/macOS:
+
+```bash
+./scripts/build-dist.sh
+./scripts/verify-dist.sh dist/datadream-linux-amd64.zip
 ```
 
 Or manually:
@@ -100,9 +125,15 @@ Or manually:
 ## End-user install
 
 1. Download / unzip `datadream-<platform>.zip`
-2. Add `bin/` to PATH **or** set `DATADREAM_ROOT` to unzip folder
-3. Run `datadream doctor`
-4. `datadream run examples/raylib/hello_friendly.dd`
+2. Read **`GETTING_STARTED.txt`** in the folder
+3. **Windows:** double-click **`Start DataDream Studio.bat`** or **`DataDream Studio.exe`**
+4. **Linux:** `./start-studio.sh`
+5. **macOS:** double-click **`DataDream Studio.app`**
+
+No Go, PATH setup, or separate SDK install required. The zip includes Clang, raylib, the compiler, and the IDE. Works offline.
+
+Optional CLI: add `bin/` to PATH and run `datadream doctor`.
+5. Launch the IDE: `datadream studio` or run `bin/datadream-studio` directly
 
 To validate a zip before shipping:
 
@@ -163,7 +194,7 @@ Pinned versions: `internal/sdk/version.go` (`LLVMMingwVersion`, `LLVMOrgVersion`
 
 | Platform | Clang source | raylib lib | Status |
 |----------|--------------|------------|--------|
-| windows-amd64 | llvm-mingw via `sdk install clang` | libraylib.a | ✅ CI dist-verify |
+| windows-amd64 | llvm-mingw via `sdk install clang` | libraylib.a | ✅ CI dist-verify + **local cold-install verified** (~188 MB zip) |
 | linux-amd64 | system Clang or `sdk install clang` | libraylib.a | ✅ CI dist-verify |
 | darwin-arm64 | system Clang or `sdk install clang` | libraylib.a | ✅ CI dist-verify |
 | darwin-amd64 | LLVM via `sdk install clang` | libraylib.a | 🟡 untested in CI |
@@ -179,7 +210,9 @@ On every push/PR:
 - `bindgen-check`: `scripts/check-bindgen.sh` keeps `libs/raylib/raw.dd` in sync
 - **dist-verify** (Windows/Linux/macOS): `build-dist.*` + `verify-dist.*` — doctor, `hello_friendly`, `hello_raw`, and `coin-runner` in the packed tree
 
-Release zips: `.github/workflows/release.yml` (`workflow_dispatch`, verify enabled by default).
+Release zips: `.github/workflows/release.yml` (`workflow_dispatch` or push tag `v*`, verify enabled by default). The `publish` job uploads all three platform zips to a GitHub Release.
+
+**To ship v1.0:** see [PUBLISH.md](PUBLISH.md).
 
 ---
 

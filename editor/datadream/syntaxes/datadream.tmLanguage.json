@@ -1,0 +1,176 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "DataDream",
+  "scopeName": "source.datadream",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#declarations" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#constants" },
+    { "include": "#functions" },
+    { "include": "#properties" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.datadream",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.datadream",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.datadream",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.datadream",
+              "match": "\\\\."
+            },
+            {
+              "name": "meta.embedded.expression.datadream",
+              "begin": "\\{",
+              "end": "\\}",
+              "patterns": [
+                { "include": "$self" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex-color.datadream",
+          "match": "#[0-9A-Fa-f]{3,8}\\b"
+        },
+        {
+          "name": "constant.numeric.float.datadream",
+          "match": "\\b\\d+\\.\\d+([fF])?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.datadream",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.datadream",
+          "match": "\\b(if|else|while|loop|for|in|break|continue|return|match|defer|try)\\b"
+        },
+        {
+          "name": "keyword.declaration.datadream",
+          "match": "\\b(let|const|fn|struct|entity|enum|app|scene|system|spawn|destroy|self|on|start|update|draw|window|ui|state|asset|preload|async|await|data|shader|module|link|include|import|export)\\b"
+        },
+        {
+          "name": "keyword.other.datadream",
+          "match": "\\b(use|using|as|extern|and|or|not|c|sync|rpc|arena|pool|network)\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "meta.function.datadream",
+          "match": "\\b(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.function.datadream" },
+            "2": { "name": "entity.name.function.datadream" }
+          }
+        },
+        {
+          "name": "meta.struct.datadream",
+          "match": "\\b(struct|entity|enum|scene|system|app|module)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.datadream" },
+            "2": { "name": "entity.name.type.datadream" }
+          }
+        },
+        {
+          "name": "meta.variable.datadream",
+          "match": "\\b(let|const)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.variable.datadream" },
+            "2": { "name": "variable.other.readwrite.datadream" }
+          }
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.datadream",
+          "match": "\\b(bool|int|float|double|string|char|byte|void|cstring|voidptr|usize|isize|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|ptr)\\b"
+        },
+        {
+          "name": "support.type.datadream",
+          "match": "\\b([A-Z][A-Za-z0-9_]*)(\\?|\\[\\])?\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.datadream",
+          "match": "\\b(true|false|null|none)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.datadream",
+          "match": "(\\.\\.|\\.\\.=|=>|==|!=|<=|>=|&&|\\|\\||[\\+\\-\\*/%=<>!&|?:])"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.call.datadream",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()"
+        }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        {
+          "name": "variable.other.member.datadream",
+          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*:)"
+        },
+        {
+          "name": "variable.other.property.datadream",
+          "match": "(?<=\\.)([A-Za-z_][A-Za-z0-9_]*)\\b"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.block.datadream",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.separator.datadream",
+          "match": "[,;]"
+        }
+      ]
+    }
+  }
+}

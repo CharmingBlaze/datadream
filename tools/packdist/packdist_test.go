@@ -48,7 +48,7 @@ func TestPackDirStructure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := packDir(root, dest); err != nil {
+	if err := packDir(root, dest, true); err != nil {
 		t.Fatal(err)
 	}
 

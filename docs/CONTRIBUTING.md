@@ -27,7 +27,7 @@ How to add features without derailing the project. **Read [VISION.md](VISION.md)
 ### Step 2 — Implementation order
 
 ```
-lexer → parser → ast (if new node) → codegen → example → test → docs
+lexer → parser → ast (if new node) → typecheck (if builtins/namespaces) → codegen → example → test → docs
 ```
 
 | Step | File(s) |
@@ -38,7 +38,10 @@ lexer → parser → ast (if new node) → codegen → example → test → docs
 | C output | `internal/codegen/*.go` |
 | C runtime helper | `game_runtime.go`, `runtime.go`, `color_runtime.go` |
 | Example | `examples/...` |
-| Test | `internal/codegen/*_test.go` |
+| Typecheck rule | `internal/typecheck/*.go` (see `forin.go` for `IterKind`) |
+| Warning (non-blocking) | `warnAtHint()` in typecheck; `Diagnostic.Warning` in compiler + CLI |
+| Error hints | `internal/typecheck/hints.go`, `internal/errors/` |
+| Test | `internal/codegen/*_test.go`, `internal/typecheck/*_test.go` |
 | Docs | `docs/LANGUAGE.md`, `docs/SYNTAX.md`, `docs/ROADMAP.md`, `docs/HANDOFF.md` |
 
 ### Step 3 — Friendly builtin pattern
@@ -48,6 +51,15 @@ For `foo.bar(...)` namespace APIs:
 1. Parser: `expr.go` — namespace roots (`draw`, `input`, …)
 2. Codegen: `expr.go` → `genNamespaceCall` or `draw.go` → `genDrawCall`
 3. C helper if needed: `game_runtime.go` or `runtime.go`
+
+### Step 3b — New iterable type (`for x in …`)
+
+Do **not** add parser variants. Instead:
+
+1. Add `IterKind` constant in `internal/ast/ast.go`
+2. Extend `resolveForIn()` in `internal/typecheck/forin.go`
+3. Add case in `genForInByKind()` in `internal/codegen/array.go` (or dedicated file)
+4. Example + test in `internal/typecheck/forin_test.go` and `internal/codegen/array_test.go`
 
 ### Step 4 — Verify
 
@@ -107,6 +119,8 @@ datadream check --codegen libs/raylib/raw.dd   # should finish quickly (<1s)
 | MSVC Clang on Windows without MinGW target | `datadream sdk install clang` |
 | English-sentence draw syntax | `draw.text(..., { ... })` |
 | Global `let x = sprite(...)` as C initializer | Use deferred `datadream_init_globals()` pattern |
+| `for c in "hello"` | `c` is C-interop keyword — use `ch` |
+| `.remove()` inside `for x in arr` | Warning only; use `.dead` + `.remove_dead()` after loop |
 | Distributing `go.mod` in release zip | `packdist` ships bin + sdk only |
 
 ---

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DataDream Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%231D3A5F'/><rect width='4' height='32' fill='%233DB8C9'/><path d='M8 10h16v2H8zm0 5h12v2H8zm0 5h14v2H8z' fill='%23E8ECEF'/></svg>" />
+  <link rel="stylesheet" href="styles.css?v=11" />
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <div class="header-brand">
+        <svg class="brand-logo header-logo" viewBox="0 0 24 24" aria-hidden="true"><rect class="logo-bg" width="24" height="24"/><rect class="logo-accent" width="3" height="24"/><path class="logo-mark" d="M6 7.5h12v1.5H6zm0 3.75h9v1.5H6zm0 3.75h10.5v1.5H6z"/></svg>
+        <span class="header-name">DataDream Studio</span>
+      </div>
+
+      <nav class="menubar" id="menubar">
+        <div class="menu-root">
+          <button class="menu-trigger" type="button">File</button>
+          <div class="menu-dropdown">
+            <button class="menu-entry" type="button" data-cmd="new">New File…</button>
+            <button class="menu-entry menu-open-project" type="button" data-cmd="openProject">Open Project Folder…</button>
+            <button class="menu-entry" type="button" data-cmd="open">Open File…<kbd>Ctrl+P</kbd></button>
+            <button class="menu-entry" type="button" data-cmd="save">Save<kbd>Ctrl+S</kbd></button>
+            <div class="menu-sep"></div>
+            <button class="menu-entry" type="button" data-cmd="close">Close Tab<kbd>Ctrl+W</kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" type="button">Edit</button>
+          <div class="menu-dropdown">
+            <button class="menu-entry" type="button" data-cmd="palette">Command Palette…<kbd>Ctrl+Shift+P</kbd></button>
+            <div class="menu-sep"></div>
+            <button class="menu-entry" type="button" data-cmd="check">Check Syntax<kbd>Ctrl+Shift+C</kbd></button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" type="button">Run</button>
+          <div class="menu-dropdown">
+            <button class="menu-entry" type="button" data-cmd="run">Run Program<kbd>Ctrl+Enter</kbd></button>
+            <button class="menu-entry" type="button" data-cmd="build">Build Binary<kbd>Ctrl+B</kbd></button>
+            <div class="menu-sep"></div>
+            <label class="menu-entry menu-check">
+              <input type="checkbox" id="chk-release-menu" />
+              <span>Release build (-O3)</span>
+            </label>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" type="button">View</button>
+          <div class="menu-dropdown">
+            <button class="menu-entry" type="button" data-cmd="explorer">Explorer</button>
+            <button class="menu-entry" type="button" data-cmd="search">Quick Open<kbd>Ctrl+P</kbd></button>
+            <button class="menu-entry" type="button" data-cmd="sdk">SDK Status</button>
+            <div class="menu-sep"></div>
+            <button class="menu-entry" type="button" data-cmd="panel">Toggle Panel<kbd>Ctrl+J</kbd></button>
+            <button class="menu-entry" type="button" data-cmd="problems">Problems Panel</button>
+            <button class="menu-entry" type="button" data-cmd="output">Output Panel</button>
+          </div>
+        </div>
+        <div class="menu-root">
+          <button class="menu-trigger" type="button">Help</button>
+          <div class="menu-dropdown">
+            <button class="menu-entry" type="button" data-cmd="shortcuts">Keyboard Shortcuts<kbd>?</kbd></button>
+            <button class="menu-entry" type="button" data-cmd="sdk">SDK Diagnostics</button>
+            <div class="menu-sep"></div>
+            <button class="menu-entry menu-entry-muted" type="button" disabled>DataDream v0.1.0</button>
+          </div>
+        </div>
+      </nav>
+
+      <div class="header-right">
+        <button class="btn btn-primary btn-run-header" id="btn-run-header" title="Run (Ctrl+Enter)">
+          <svg width="12" height="12" viewBox="0 0 16 16"><path fill="currentColor" d="M4 3l9 5-9 5V3z"/></svg>
+          Run
+        </button>
+      </div>
+    </header>
+
+    <div class="toolbar toolbar-compact">
+      <button class="command-trigger" id="btn-command" title="Command Palette (Ctrl+Shift+P)">
+        <svg width="12" height="12" viewBox="0 0 16 16"><path fill="currentColor" d="M6.5 1a5.5 5.5 0 1 0 3.384 9.842l3.897 3.897a.75.75 0 1 0 1.06-1.06l-3.897-3.897A5.5 5.5 0 0 0 6.5 1z"/></svg>
+        <span>Search commands</span>
+        <kbd>Ctrl+Shift+P</kbd>
+      </button>
+      <div class="toolbar-actions">
+        <button class="btn btn-ghost btn-icon" id="btn-save" title="Save (Ctrl+S)">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M13 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5.5L13 2zm-1 10H4V4h7v3h2v5z"/></svg>
+        </button>
+        <button class="btn btn-secondary btn-icon" id="btn-check" title="Check (Ctrl+Shift+C)">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M6.5 11.5L3 8l1-1 2.5 2.5L12 4l1 1-6.5 6.5z"/></svg>
+        </button>
+        <button class="btn btn-primary btn-icon" id="btn-run" title="Run (Ctrl+Enter)">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M4 3l9 5-9 5V3z"/></svg>
+        </button>
+        <button class="btn btn-secondary btn-icon" id="btn-build" title="Build (Ctrl+B)">
+          <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M2 4h12v2H2V4zm0 3h8v2H2V7zm0 3h10v2H2v-2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <nav class="activity-bar">
+        <button class="activity-btn active" data-view="explorer" title="Explorer">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M1.5 2.75A1.25 1.25 0 0 1 2.75 1.5h3.5a.5.5 0 0 1 .4.2l1.3 1.74 1.3-1.74a.5.5 0 0 1 .4-.2h3.5A1.25 1.25 0 0 1 14.5 2.75v10.5A1.25 1.25 0 0 1 13.25 14.5H2.75A1.25 1.25 0 0 1 1.5 13.25V2.75z"/></svg>
+        </button>
+        <button class="activity-btn" data-view="search" title="Search Files (Ctrl+P)">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M6.5 1a5.5 5.5 0 1 0 3.384 9.842l3.897 3.897a.75.75 0 1 0 1.06-1.06l-3.897-3.897A5.5 5.5 0 0 0 6.5 1z"/></svg>
+        </button>
+        <button class="activity-btn" data-view="sdk" title="SDK Status">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM7 4.75a1 1 0 0 1 2 0v3.5a1 1 0 1 1-2 0v-3.5zm1 8a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5z"/></svg>
+        </button>
+        <div class="activity-spacer"></div>
+        <button class="activity-btn" id="btn-shortcuts" title="Keyboard Shortcuts (?)">
+          <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-9zM4 5h8v1H4V5zm0 2.5h5V9H4V7.5z"/></svg>
+        </button>
+      </nav>
+
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-view active" id="view-explorer">
+          <div class="sidebar-header">
+            <span>Explorer</span>
+            <div class="sidebar-actions">
+              <button class="icon-btn" id="btn-new-file" title="New File">
+                <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M8 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.75v4.25a.75.75 0 0 1-1.5 0V8.5H3a.75.75 0 0 1 0-1.5h4.25V2.75A.75.75 0 0 1 8 2z"/></svg>
+              </button>
+              <button class="icon-btn" id="btn-refresh-tree" title="Refresh">
+                <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M13.5 2A6.5 6.5 0 1 0 14 9h-1.5a5 5 0 1 1-1-3.5H9l3 3 3-3H13.5z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="sidebar-filter">
+            <input type="text" id="tree-filter" placeholder="Filter files…" autocomplete="off" />
+          </div>
+          <div class="file-tree" id="file-tree"></div>
+          <div class="sidebar-footer sidebar-footer-compact">
+            <button class="quick-link" data-path="examples/beginner/clicker.dd">clicker</button>
+            <button class="quick-link" data-path="examples/raylib/hello_friendly.dd">hello</button>
+          </div>
+        </div>
+
+        <div class="sidebar-view" id="view-search">
+          <div class="sidebar-header"><span>Quick Open</span></div>
+          <div class="sidebar-filter">
+            <input type="text" id="quick-open-input" placeholder="Type to search files…" autocomplete="off" />
+          </div>
+          <div class="search-results" id="search-results"></div>
+        </div>
+
+        <div class="sidebar-view" id="view-sdk">
+          <div class="sidebar-header"><span>SDK Status</span></div>
+          <div class="sdk-panel" id="sdk-panel">
+            <div class="sdk-loading">Checking toolchain…</div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="sidebar-resizer" id="sidebar-resizer"></div>
+
+      <main class="editor-area">
+        <div class="breadcrumb-bar" id="breadcrumb-bar">
+          <span class="breadcrumb-item">No file open</span>
+        </div>
+        <div class="tab-bar" id="tab-bar">
+          <div class="tab-bar-empty" id="tab-empty">Open a .dd file — Ctrl+P to quick open</div>
+        </div>
+        <div class="editor-container" id="editor-container">
+          <div class="editor-welcome" id="editor-welcome">
+            <div class="welcome-card">
+              <div class="welcome-logo">
+                <svg class="brand-logo" viewBox="0 0 48 48" aria-hidden="true"><rect class="logo-bg" width="48" height="48"/><rect class="logo-accent" width="6" height="48"/><path class="logo-mark" d="M12 15h24v3H12zm0 7.5h18v3H12zm0 7.5h21v3H12z"/></svg>
+              </div>
+              <h1>DataDream Studio</h1>
+              <p>Professional IDE for building native games with the DataDream language.</p>
+              <div class="welcome-grid">
+                <div class="welcome-feature">
+                  <strong>Write</strong>
+                  <span>Syntax highlighting, snippets, live diagnostics</span>
+                </div>
+                <div class="welcome-feature">
+                  <strong>Check</strong>
+                  <span>Instant type errors with helpful hints</span>
+                </div>
+                <div class="welcome-feature">
+                  <strong>Run</strong>
+                  <span>Compile and launch with one click</span>
+                </div>
+              </div>
+              <div class="welcome-shortcuts">
+                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>P</kbd> Open file</div>
+                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>S</kbd> Save</div>
+                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> Run</div>
+              </div>
+            </div>
+          </div>
+          <div id="monaco-editor" class="monaco-host"></div>
+          <div class="editor-loading" id="editor-loading">
+            <div class="spinner"></div>
+            <span>Loading editor…</span>
+          </div>
+        </div>
+
+        <div class="panel-resizer" id="panel-resizer"></div>
+        <div class="panel collapsed" id="bottom-panel">
+          <div class="panel-header">
+            <div class="panel-tabs">
+              <button class="panel-tab active" data-panel="problems">
+                Problems <span class="badge" id="problem-count">0</span>
+              </button>
+              <button class="panel-tab" data-panel="output">Output</button>
+            </div>
+            <div class="panel-actions">
+              <button class="icon-btn" id="btn-clear-output" title="Clear output">
+                <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M3 4h10v1H3V4zm1 2h8l-.7 7.5a1 1 0 0 1-1 .5H5.7a1 1 0 0 1-1-.5L4 6z"/></svg>
+              </button>
+              <button class="icon-btn" id="btn-toggle-panel" title="Toggle panel">
+                <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M2 10h12v1H2v-1z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="panel-content">
+            <div class="panel-pane active" id="panel-problems">
+              <div class="problems-list" id="problems-list">
+                <div class="problems-empty">No problems detected</div>
+              </div>
+            </div>
+            <div class="panel-pane" id="panel-output">
+              <pre class="output-log" id="output-log"></pre>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="statusbar">
+      <span class="status-item status-branch" id="status-branch">DataDream</span>
+      <span class="status-item" id="status-file">No file open</span>
+      <span class="status-item" id="status-position">Ln 1, Col 1</span>
+      <span class="status-item" id="status-lang">DataDream</span>
+      <span class="status-item status-spacer"></span>
+      <span class="status-item status-workspace" id="status-workspace" title="">Loading…</span>
+      <span class="status-item" id="status-sdk" title="SDK status">SDK</span>
+      <span class="status-item" id="status-dirty"></span>
+      <span class="status-item" id="status-version">v0.1.0</span>
+      <span class="status-item" id="status-ready">Ready</span>
+    </footer>
+  </div>
+
+  <!-- Command palette -->
+  <div class="overlay hidden" id="overlay-palette">
+    <div class="palette">
+      <input type="text" id="palette-input" placeholder="Type a command…" autocomplete="off" />
+      <div class="palette-list" id="palette-list"></div>
+    </div>
+  </div>
+
+  <!-- Quick open modal -->
+  <div class="overlay hidden" id="overlay-quickopen">
+    <div class="palette">
+      <input type="text" id="modal-quickopen" placeholder="Search files by name…" autocomplete="off" />
+      <div class="palette-list" id="quickopen-list"></div>
+    </div>
+  </div>
+
+  <!-- New file modal -->
+  <div class="overlay hidden" id="overlay-newfile">
+    <div class="modal">
+      <h2>New DataDream File</h2>
+      <label>Path (relative to project)</label>
+      <input type="text" id="new-file-path" placeholder="my-game/game.dd" autocomplete="off" />
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btn-new-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-new-create">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shortcuts modal -->
+  <div class="overlay hidden" id="overlay-shortcuts">
+    <div class="modal modal-wide">
+      <h2>Keyboard Shortcuts</h2>
+      <div class="shortcuts-grid" id="shortcuts-grid"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="btn-shortcuts-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unsaved dialog -->
+  <div class="overlay hidden" id="overlay-unsaved">
+    <div class="modal">
+      <h2>Unsaved Changes</h2>
+      <p id="unsaved-msg">Save changes before closing?</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btn-unsaved-discard">Don't Save</button>
+        <button class="btn btn-secondary" id="btn-unsaved-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-unsaved-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/monaco/min/vs/loader.js"></script>
+  <script src="app.js?v=11"></script>
+</body>
+</html>

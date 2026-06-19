@@ -233,6 +233,12 @@ func (g *Generator) genCall(c *ast.CallExpr) {
 	// Handle namespaced calls: draw.text, input.move2d, collision.overlap, etc.
 	if field, ok := c.Callee.(*ast.FieldExpr); ok {
 		if obj, ok2 := field.Object.(*ast.Ident); ok2 {
+			if g.tryGenArrayMethodCall(obj.Name, field.Field, c.Args) {
+				return
+			}
+			if g.tryGenMethodCall(obj.Name, field.Field, c.Args) {
+				return
+			}
 			if obj.Name == "draw" {
 				g.genDrawCall(field.Field, c.Args)
 				return
@@ -411,6 +417,48 @@ func (g *Generator) genStringArg(node ast.Node) {
 		return
 	}
 	g.genExpr(node)
+}
+
+func (g *Generator) tryGenMethodCall(receiver, method string, args []ast.Node) bool {
+	if receiver == "self" && g.entitySelfPtr && g.currentEntity != "" {
+		return g.emitMethodCall(g.currentEntity, true, "self", method, args)
+	}
+	if g.varTypes == nil {
+		return false
+	}
+	typ, ok := g.varTypes[receiver]
+	if !ok {
+		return false
+	}
+	if strings.HasSuffix(typ, "_Entity*") {
+		entityName := strings.TrimSuffix(typ, "_Entity*")
+		return g.emitMethodCall(entityName, true, receiver, method, args)
+	}
+	return g.emitMethodCall(typ, false, receiver, method, args)
+}
+
+func (g *Generator) emitMethodCall(typeName string, isEntity bool, receiver, method string, args []ast.Node) bool {
+	var methods map[string]bool
+	if isEntity {
+		methods = g.entityMethods[typeName]
+	} else {
+		methods = g.structMethods[typeName]
+	}
+	if methods == nil || !methods[method] {
+		return false
+	}
+	g.emit("%s_%s(", typeName, method)
+	if isEntity {
+		g.emit("%s", receiver)
+	} else {
+		g.emit("&%s", receiver)
+	}
+	for _, arg := range args {
+		g.emit(", ")
+		g.genExpr(arg)
+	}
+	g.emit(")")
+	return true
 }
 
 func (g *Generator) isVec2Expr(node ast.Node) bool {

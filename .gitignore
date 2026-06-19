@@ -1,6 +1,8 @@
-# Built artifacts
-datadream
-datadream.exe
+# Built artifacts (root only — do not match cmd/datadream/)
+/datadream
+/datadream.exe
+/packdist
+/packdist.exe
 *.exe
 *.pdb
 dist/
@@ -24,3 +26,5 @@ Thumbs.db
 
 # Temp
 tmp_debug.go
+*~
+*.exe~

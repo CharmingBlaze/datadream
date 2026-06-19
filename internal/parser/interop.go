@@ -9,13 +9,26 @@ func (p *Parser) parseUse() *ast.UseStmt {
 	pos := p.pos0()
 	p.advance() // use
 	path := p.parseQualifiedName()
+	var symbols []string
+	if p.check(lexer.TOKEN_LBRACE) {
+		p.advance()
+		for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
+			symbols = append(symbols, p.expectIdent())
+			if p.check(lexer.TOKEN_COMMA) {
+				p.advance()
+			} else if !p.check(lexer.TOKEN_RBRACE) {
+				p.errorAt(p.peek(), "expected ',' between import symbols")
+			}
+		}
+		p.expect(lexer.TOKEN_RBRACE)
+	}
 	alias := ""
 	if p.check(lexer.TOKEN_AS) {
 		p.advance()
 		alias = p.expectIdent()
 	}
 	p.eatSemi()
-	return ast.NewUseStmt(path, alias, pos)
+	return ast.NewUseStmt(path, alias, symbols, pos)
 }
 
 func (p *Parser) parseUsing() *ast.UsingStmt {

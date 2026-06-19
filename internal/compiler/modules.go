@@ -41,10 +41,11 @@ func expandModules(mainPath, source string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("cannot read module %q (%s): %w", module, modPath, err)
 		}
+		filtered := filterModuleExports(string(body))
 		loaded[module] = true
 		out.WriteString(fmt.Sprintf("/* ── module: %s (%s) ── */\n", module, filepath.ToSlash(modPath)))
-		out.WriteString(string(body))
-		if len(body) > 0 && body[len(body)-1] != '\n' {
+		out.WriteString(filtered)
+		if len(filtered) > 0 && filtered[len(filtered)-1] != '\n' {
 			out.WriteString("\n")
 		}
 	}

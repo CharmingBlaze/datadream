@@ -19,7 +19,7 @@ type Parser interface {
 
 // CodeGenerator emits target source from an AST.
 type CodeGenerator interface {
-	Generate(prog *ast.Program) (string, []string)
+	Generate(prog *ast.Program) (string, []codegen.Diagnostic)
 }
 
 // Phase is an optional middle-end pass (typecheck, lint, optimize AST, etc.).
@@ -45,6 +45,6 @@ func (defaultParser) Parse(tokens []lexer.Token, file string) (*ast.Program, []p
 
 type defaultCodeGen struct{}
 
-func (defaultCodeGen) Generate(prog *ast.Program) (string, []string) {
+func (defaultCodeGen) Generate(prog *ast.Program) (string, []codegen.Diagnostic) {
 	return codegen.New().Generate(prog)
 }

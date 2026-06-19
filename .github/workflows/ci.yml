@@ -99,7 +99,7 @@ jobs:
           go build -o packdist ./tools/packdist
           ./datadream sdk install headers
           ./datadream sdk install raylib
-          ./packdist --out dist/datadream-linux-amd64.zip --verify
+          ./packdist --out dist/datadream-linux-amd64.zip --verify --skip-studio
           chmod +x scripts/verify-dist.sh
           ./scripts/verify-dist.sh dist/datadream-linux-amd64.zip
 
@@ -154,7 +154,7 @@ jobs:
           go build -o packdist ./tools/packdist
           ./datadream sdk install headers
           ./datadream sdk install raylib
-          ./packdist --out dist/datadream-darwin-arm64.zip --verify
+          ./packdist --out dist/datadream-darwin-arm64.zip --verify --skip-studio
           chmod +x scripts/verify-dist.sh
           ./scripts/verify-dist.sh dist/datadream-darwin-arm64.zip
 
@@ -174,5 +174,5 @@ jobs:
         env:
           CGO_ENABLED: "0"
         run: |
-          .\scripts\build-dist.ps1
+          .\scripts\build-dist.ps1 -SkipStudio
           .\scripts\verify-dist.ps1 dist\datadream-windows-amd64.zip

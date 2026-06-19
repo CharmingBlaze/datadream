@@ -23,11 +23,17 @@ func (g *Generator) genFieldExpr(f *ast.FieldExpr) {
 		}
 	}
 	if ident, ok := f.Object.(*ast.Ident); ok && ident.Name == "self" && g.entitySelfPtr {
+		if g.currentEntity != "" && g.emitPackedEntityFieldAccess(g.currentEntity, f.Field) {
+			return
+		}
 		g.emit("self->%s", f.Field)
 		return
 	}
 	if ident, ok := f.Object.(*ast.Ident); ok && g.isImportedModule(ident.Name) {
 		g.emit("%s", f.Field)
+		return
+	}
+	if ident, ok := f.Object.(*ast.Ident); ok && g.tryGenArrayFieldAccess(ident.Name, f.Field) {
 		return
 	}
 	g.emitFieldAccess(f.Object, f.Field)
@@ -36,11 +42,18 @@ func (g *Generator) genFieldExpr(f *ast.FieldExpr) {
 func (g *Generator) emitFieldAccess(obj ast.Node, field string) {
 	if ident, ok := obj.(*ast.Ident); ok {
 		if ident.Name == "self" && g.entitySelfPtr {
+			if g.currentEntity != "" && g.emitPackedEntityFieldAccess(g.currentEntity, field) {
+				return
+			}
 			g.emit("self->%s", field)
 			return
 		}
 		if g.varTypes != nil {
 			if t, ok := g.varTypes[ident.Name]; ok && strings.HasSuffix(t, "_Entity*") {
+				entityName := strings.TrimSuffix(t, "_Entity*")
+				if g.emitPackedEntityVarFieldAccess(ident.Name, entityName, field) {
+					return
+				}
 				g.emit("%s->%s", ident.Name, field)
 				return
 			}

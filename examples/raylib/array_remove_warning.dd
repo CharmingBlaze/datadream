@@ -1,0 +1,12 @@
+// Demonstrates compile-time warning for .remove() during for-in iteration
+use raylib;
+
+fn main() {
+    let bullets: Array<int>;
+    bullets.push(1);
+    bullets.push(2);
+
+    for b in bullets {
+        bullets.remove(0);
+    }
+}

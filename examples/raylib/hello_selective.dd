@@ -1,0 +1,16 @@
+// Selective raylib import — only listed symbols are in file scope
+use raylib { InitWindow, CloseWindow, WindowShouldClose, BeginDrawing, EndDrawing, ClearBackground, DrawText, SetTargetFPS, RAYWHITE, BLACK };
+
+fn main() {
+    InitWindow(800, 450, "Selective import");
+    defer CloseWindow();
+    SetTargetFPS(60);
+
+    loop {
+        if WindowShouldClose() { break; }
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText("use raylib { ... }", 120, 200, 24, BLACK);
+        EndDrawing();
+    }
+}

@@ -133,6 +133,15 @@ func (g *Generator) paramsToC(params []ast.Param) string {
 	return strings.Join(parts, ", ")
 }
 
+func methodParamsC(g *Generator, selfType string, params []ast.Param) string {
+	selfParam := fmt.Sprintf("%s* self", selfType)
+	extra := g.paramsToC(params)
+	if extra == "" || extra == "void" {
+		return selfParam
+	}
+	return selfParam + ", " + extra
+}
+
 func (g *Generator) inferTypeFromExpr(node ast.Node) string {
 	switch n := node.(type) {
 	case *ast.IntLit:
@@ -146,7 +155,7 @@ func (g *Generator) inferTypeFromExpr(node ast.Node) string {
 	case *ast.ColorLit:
 		return "Color"
 	case *ast.ArrayLit:
-		return "void*"
+		return "Array<" + g.inferArrayElemType(n) + ">"
 	case *ast.StructLit:
 		return n.TypeName
 	case *ast.CallExpr:

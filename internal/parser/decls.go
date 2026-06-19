@@ -45,6 +45,121 @@ func (p *Parser) parseInclude() *ast.IncludeStmt {
 	return &ast.IncludeStmt{Path: path}
 }
 
+func (p *Parser) parseExportDecl() ast.Node {
+	p.advance() // export
+	switch p.peek().Type {
+	case lexer.TOKEN_FN:
+		p.advance()
+		fn := p.parseFnDecl(false, false)
+		fn.Exported = true
+		return fn
+	case lexer.TOKEN_LET:
+		let := p.parseLet()
+		let.Exported = true
+		return let
+	default:
+		p.error("expected `fn` or `let` after `export`")
+		return nil
+	}
+}
+
+func (p *Parser) parseAttributedDecl() ast.Node {
+	attrs := p.parseAttrs()
+	switch p.peek().Type {
+	case lexer.TOKEN_STRUCT:
+		return p.parseStructWithAttrs(attrs)
+	case lexer.TOKEN_ENTITY:
+		return p.parseEntityWithAttrs(attrs)
+	default:
+		p.error("expected `struct` or `entity` after `@` attribute")
+		return nil
+	}
+}
+
+func (p *Parser) parseStructWithAttrs(declAttrs []ast.Attribute) *ast.StructDecl {
+	p.advance() // struct
+	name := p.expectIdent()
+	p.expect(lexer.TOKEN_LBRACE)
+	var fields []ast.FieldDecl
+	var methods []*ast.FnDecl
+	for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
+		memberAttrs := p.parseAttrs()
+		if p.check(lexer.TOKEN_FN) {
+			p.advance()
+			m := p.parseFnDecl(false, false)
+			m.Attrs = memberAttrs
+			methods = append(methods, m)
+		} else if p.check(lexer.TOKEN_RBRACE) {
+			break
+		} else {
+			f := p.parseFieldDecl()
+			f.Attrs = memberAttrs
+			fields = append(fields, f)
+		}
+	}
+	p.expect(lexer.TOKEN_RBRACE)
+	return &ast.StructDecl{Name: name, Fields: fields, Methods: methods, Attrs: declAttrs}
+}
+
+func (p *Parser) parseEntityWithAttrs(declAttrs []ast.Attribute) *ast.EntityDecl {
+	p.advance()
+	name := p.expectIdent()
+	p.expect(lexer.TOKEN_LBRACE)
+	e := &ast.EntityDecl{Name: name, Attrs: declAttrs}
+	for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
+		memberAttrs := p.parseAttrs()
+		switch p.peek().Type {
+		case lexer.TOKEN_UPDATE:
+			p.advance()
+			e.UpdateBlock = p.parseBlock()
+		case lexer.TOKEN_START:
+			p.advance()
+			e.StartBlock = p.parseBlock()
+		case lexer.TOKEN_DRAW:
+			p.advance()
+			e.DrawBlock = p.parseBlock()
+		case lexer.TOKEN_ON:
+			e.OnEvents = append(e.OnEvents, p.parseOnEvent())
+		case lexer.TOKEN_FN:
+			p.advance()
+			m := p.parseFnDecl(false, false)
+			m.Attrs = memberAttrs
+			e.Methods = append(e.Methods, m)
+		default:
+			if p.check(lexer.TOKEN_IDENT) {
+				name2 := p.peek().Value
+				p.advance()
+				if p.check(lexer.TOKEN_LPAREN) {
+					args := p.parseArgs()
+					e.Components = append(e.Components, &ast.CallExpr{
+						Callee: ast.NewIdent(name2, p.pos0()),
+						Args:   args,
+					})
+					p.eatSemi()
+				} else if p.check(lexer.TOKEN_EQ) || p.check(lexer.TOKEN_COLON) {
+					var t *ast.TypeExpr
+					if p.check(lexer.TOKEN_COLON) {
+						p.advance()
+						t = p.parseType()
+					}
+					var def ast.Node
+					if p.check(lexer.TOKEN_EQ) {
+						p.advance()
+						def = p.parseExpr()
+					}
+					e.Fields = append(e.Fields, ast.FieldDecl{Name: name2, Type: t, Default: def, Attrs: memberAttrs})
+					p.eatSemi()
+				}
+			} else {
+				p.error("unexpected token in entity")
+				p.advance()
+			}
+		}
+	}
+	p.expect(lexer.TOKEN_RBRACE)
+	return e
+}
+
 func (p *Parser) parseExtern() ast.Node {
 	p.advance() // eat 'extern'
 	p.expect(lexer.TOKEN_FN)
@@ -126,6 +241,9 @@ func (p *Parser) parseType() *ast.TypeExpr {
 			}
 		}
 		p.expect(lexer.TOKEN_GT)
+	} else if name == "list" && len(params) == 0 && lexer.IsBindingName(p.peek().Type, p.peek().Value) {
+		elem := p.parseBindingIdent()
+		params = append(params, &ast.TypeExpr{Name: elem})
 	}
 	optional := false
 	if p.check(lexer.TOKEN_QMARK) {
@@ -143,28 +261,7 @@ func (p *Parser) parseType() *ast.TypeExpr {
 }
 
 func (p *Parser) parseStruct() *ast.StructDecl {
-	p.advance() // eat 'struct'
-	name := p.expectIdent()
-	p.expect(lexer.TOKEN_LBRACE)
-	var fields []ast.FieldDecl
-	var methods []*ast.FnDecl
-	for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
-		attrs := p.parseAttrs()
-		if p.check(lexer.TOKEN_FN) {
-			p.advance()
-			m := p.parseFnDecl(false, false)
-			m.Attrs = attrs
-			methods = append(methods, m)
-		} else if p.check(lexer.TOKEN_RBRACE) {
-			break
-		} else {
-			f := p.parseFieldDecl()
-			f.Attrs = attrs
-			fields = append(fields, f)
-		}
-	}
-	p.expect(lexer.TOKEN_RBRACE)
-	return &ast.StructDecl{Name: name, Fields: fields, Methods: methods}
+	return p.parseStructWithAttrs(p.parseAttrs())
 }
 
 func (p *Parser) parseBindingIdent() string {
@@ -216,69 +313,7 @@ func (p *Parser) parseAttrs() []ast.Attribute {
 }
 
 func (p *Parser) parseEntity() *ast.EntityDecl {
-	p.advance()
-	name := p.expectIdent()
-	p.expect(lexer.TOKEN_LBRACE)
-	e := &ast.EntityDecl{Name: name}
-	for !p.check(lexer.TOKEN_RBRACE) && !p.isEOF() {
-		attrs := p.parseAttrs()
-		switch p.peek().Type {
-		case lexer.TOKEN_UPDATE:
-			p.advance()
-			e.UpdateBlock = p.parseBlock()
-		case lexer.TOKEN_START:
-			p.advance()
-			e.StartBlock = p.parseBlock()
-		case lexer.TOKEN_DRAW:
-			p.advance()
-			e.DrawBlock = p.parseBlock()
-		case lexer.TOKEN_ON:
-			e.OnEvents = append(e.OnEvents, p.parseOnEvent())
-		case lexer.TOKEN_FN:
-			p.advance()
-			m := p.parseFnDecl(false, false)
-			m.Attrs = attrs
-			e.Methods = append(e.Methods, m)
-		default:
-			// Could be component or field
-			if p.check(lexer.TOKEN_IDENT) {
-				name2 := p.peek().Value
-				p.advance()
-				if p.check(lexer.TOKEN_LPAREN) {
-					// Component call
-					args := p.parseArgs()
-					e.Components = append(e.Components, &ast.CallExpr{
-						Callee: ast.NewIdent(name2, p.pos0()),
-						Args:   args,
-					})
-					p.eatSemi()
-				} else if p.check(lexer.TOKEN_EQ) || p.check(lexer.TOKEN_COLON) {
-					// Field
-					var t *ast.TypeExpr
-					if p.check(lexer.TOKEN_COLON) {
-						p.advance()
-						t = p.parseType()
-					}
-					var def ast.Node
-					if p.check(lexer.TOKEN_EQ) {
-						p.advance()
-						def = p.parseExpr()
-					}
-					p.eatSemi()
-					f := ast.FieldDecl{Name: name2, Type: t, Default: def, Attrs: attrs}
-					e.Fields = append(e.Fields, f)
-				} else {
-					// Bare component name
-					e.Components = append(e.Components, ast.NewIdent(name2, p.pos0()))
-					p.eatSemi()
-				}
-			} else {
-				p.advance() // skip unknown
-			}
-		}
-	}
-	p.expect(lexer.TOKEN_RBRACE)
-	return e
+	return p.parseEntityWithAttrs(p.parseAttrs())
 }
 
 func (p *Parser) parseScene() *ast.SceneDecl {

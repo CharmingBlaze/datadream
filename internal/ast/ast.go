@@ -42,6 +42,7 @@ type LetStmt struct {
 	Name     string
 	TypeHint *TypeExpr // optional
 	Value    Node
+	Exported bool
 	position Position
 }
 
@@ -87,11 +88,24 @@ type ElseIf struct {
 
 type ForInStmt struct {
 	Index    string // optional index variable
-	Value    string
+	Value    string // loop binding name
 	Iter     Node
 	Body     []Node
+	Kind     IterKind // set by type checker
+	ElemType string   // element type for IterArray (e.g. "int", "Enemy")
+	Entity   string   // entity name for IterEntity
 	position Position
 }
+
+// IterKind classifies `for x in iterable` loops (range uses ForRangeStmt).
+type IterKind int
+
+const (
+	IterUnknown IterKind = iota
+	IterEntity           // for e in Enemy
+	IterArray            // for x in someArray or [1, 2, 3]
+	IterString           // for c in "hello" or string variable
+)
 
 func (f *ForInStmt) nodeType() string { return "ForInStmt" }
 func (f *ForInStmt) Pos() Position    { return f.position }
@@ -249,6 +263,7 @@ type FnDecl struct {
 	Body     []Node
 	IsAsync  bool
 	IsExtern bool
+	Exported bool
 	Attrs    []Attribute
 	position Position
 }
@@ -265,6 +280,7 @@ type StructDecl struct {
 	Name     string
 	Fields   []FieldDecl
 	Methods  []*FnDecl
+	Attrs    []Attribute
 	position Position
 }
 
@@ -283,6 +299,7 @@ type EntityDecl struct {
 	Components []Node // Component calls or idents
 	Fields     []FieldDecl
 	Methods    []*FnDecl
+	Attrs      []Attribute
 	StartBlock []Node
 	UpdateBlock []Node
 	DrawBlock  []Node
@@ -466,9 +483,10 @@ func (t *TernaryExpr) nodeType() string { return "TernaryExpr" }
 func (t *TernaryExpr) Pos() Position    { return t.position }
 
 type StructLit struct {
-	TypeName string
-	Fields   map[string]Node
-	position Position
+	TypeName  string
+	Fields    map[string]Node
+	IsPattern bool // match arm destructuring pattern
+	position  Position
 }
 
 func (s *StructLit) nodeType() string { return "StructLit" }

@@ -10,17 +10,22 @@ import (
 type Generator struct {
 	sb      strings.Builder
 	indent  int
-	errors  []string
+	errors        []Diagnostic
+	packedEntities map[string]bool
 	useLibs []string
 	structs  []string
 	entities []string
 	entityFields map[string]map[string]string
+	structMethods map[string]map[string]bool
+	entityMethods map[string]map[string]bool
 	// C interop
 	imports   map[string]string
+	useWhitelist map[string]map[string]bool // module path -> allowed symbols (nil map = all)
 	usingMods []string
 	linkLibs  []string
 	hasMain   bool
 	userFns   map[string]bool
+	sourceFile string
 	// App / raylib mode
 	usesRaylib      bool
 	hasApp          bool
@@ -39,6 +44,11 @@ type Generator struct {
 	usesMathRuntime     bool
 	usesAudioRuntime    bool
 	usesUIRuntime       bool
+	usesFrameArena      bool
+	usesLevelArena      bool
+	needsArrayRuntime   bool
+	arrayCounter        int
+	stringCounter       int
 	scenes              []sceneHooks
 	entityHooks         []entityHook
 	systems             []string
@@ -50,10 +60,18 @@ type Generator struct {
 	topLevel        bool
 	deferredGlobalInits []string
 	deferStack          []ast.Node
+	deferScopeMarks     []int
+	perFrameDepth       int
+	whileGuardSerial    int
 }
 
 func New() *Generator {
 	return &Generator{}
+}
+
+// SetSourceFile sets the path of the main .dd file (for module / include resolution).
+func (g *Generator) SetSourceFile(path string) {
+	g.sourceFile = path
 }
 
 // LinkLibs returns collected native link flags from use/extern c statements.
@@ -62,7 +80,7 @@ func (g *Generator) LinkLibs() []string {
 }
 
 // Generate produces a full C source file from a DataDream program
-func (g *Generator) Generate(prog *ast.Program) (string, []string) {
+func (g *Generator) Generate(prog *ast.Program) (string, []Diagnostic) {
 	g.analyzeProgram(prog)
 	g.emitHeader(prog.AppName)
 
@@ -74,6 +92,9 @@ func (g *Generator) Generate(prog *ast.Program) (string, []string) {
 		g.emit("typedef struct %s %s;\n", name, name)
 	}
 	for _, name := range g.entities {
+		if g.isPackedEntity(name) {
+			continue
+		}
 		g.emit("typedef struct %s_Entity %s_Entity;\n", name, name)
 	}
 	if len(g.structs)+len(g.entities) > 0 {
@@ -101,6 +122,11 @@ func (g *Generator) Generate(prog *ast.Program) (string, []string) {
 	g.emitEntryPoint(prog)
 
 	return g.sb.String(), g.errors
+}
+
+// Errors returns collected codegen diagnostics.
+func (g *Generator) Errors() []Diagnostic {
+	return g.errors
 }
 
 // ─── Node dispatch ────────────────────────────────────────────────────────────
@@ -133,9 +159,13 @@ func (g *Generator) genNode(node ast.Node) {
 	case *ast.ContinueStmt:
 		g.genContinue(n)
 	case *ast.ExprStmt:
-		g.iemit("")
-		g.genExpr(n.Expr)
-		g.emit(";\n")
+		if recv, args, ok := arrayPushCall(n.Expr); ok {
+			g.genArrayPushStmt(recv, args)
+		} else {
+			g.iemit("")
+			g.genExpr(n.Expr)
+			g.emit(";\n")
+		}
 	case *ast.BlockStmt:
 		g.genStmts(n.Stmts)
 	case *ast.SpawnStmt:

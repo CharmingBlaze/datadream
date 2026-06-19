@@ -1,0 +1,5 @@
+{
+  "name": "demoexports",
+  "version": "1.0.0",
+  "description": "Demo module with export fn / export let"
+}

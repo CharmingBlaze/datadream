@@ -47,10 +47,18 @@ Status key: ✅ done · 🔄 in progress · 🟡 partial · ❌ not started
 | # | Task | Status | Files |
 |---|------|--------|-------|
 | 22 | Type checker `Phase` | ✅ | `internal/typecheck/`, default in `check` |
-| 23 | Better error messages everywhere | 🟡 | `internal/errors/` |
+| 23 | Better error messages everywhere | 🟡 | `internal/errors/`, hints for typecheck ✅ + lex/parse ✅; codegen diagnostics have file/line/hint ✅ |
 | 24 | Module system (`use graphics` → `libs/`) | ✅ | `compiler/modules.go`, `pkg/resolver.go` |
-| 25 | `include` → proper modules with exports | ❌ | `compiler/source.go` |
-| 26 | Struct method calls on game types | 🟡 | `codegen/decls.go` |
+| 25 | `include` → proper modules with exports | ✅ | `export fn` / `export let`; `filterModuleExports` in `modules_export.go` |
+| 26 | Struct method calls on game types | ✅ | `codegen/decls.go`, `codegen/expr.go` |
+| 27 | **`Array<T>` / `list T` + `DD_Array`** | ✅ | `codegen/array.go`, `typecheck/forin.go` |
+| 28 | **`for x in array` (IterKind disambiguation)** | ✅ | `array_for_in.dd`, `array_demo.dd` |
+| 29 | **String `for ch in "hello"` (byte iter)** | ✅ | `string_for_in.dd` |
+| 30 | **Warning: `.remove()` during for-in** | ✅ | `forin.go`, `array_remove_warning.dd` |
+| 31 | **`match` struct destructuring** | ✅ | `match_destruct.dd` |
+| 32 | **`defer` on return/break/continue** | ✅ | `defer.go` |
+| 33 | **`@packed` / `@save` attributes** | ✅ | `attrs.go`, `ecs_packed.go`, `attributes_demo.dd` |
+| 34 | Frame + level arena runtime | ✅ | `codegen/arena.go`, LANGUAGE.md |
 
 ---
 
@@ -76,7 +84,8 @@ Status key: ✅ done · 🔄 in progress · 🟡 partial · ❌ not started
 | 35 | CI: test + build + dist verify | ✅ | `.github/workflows/ci.yml` (dist-verify Linux/macOS/Windows) |
 | 36 | Release zips per platform | ✅ | `scripts/build-dist.*`, `packdist --verify`, `.github/workflows/release.yml` |
 | 37 | Regenerate `raw.dd` in CI | ✅ | `scripts/check-bindgen.*`, CI `bindgen-check` |
-| 38 | LSP / VS Code extension | ❌ | future |
+| 38 | LSP / VS Code extension | 🟡 | TextMate grammar + minimal extension in `editor/datadream/`; LSP later |
+| 39 | `datadream new` project scaffold | ✅ | `internal/cli/new.go` — `game.dd`, `assets/`, README |
 
 ---
 
@@ -123,6 +132,36 @@ Status key: ✅ done · 🔄 in progress · 🟡 partial · ❌ not started
 - ✅ All 17 examples build; CI runs `scripts/build-all-examples.sh` on Linux + macOS
 - ✅ Fixed `let bg = colors.*` type inference (`inferTypeFromExpr` → `Color`)
 - ✅ `hello_3d.dd` v1 target with `defer CloseWindow()`
+- ✅ `cmd/datadream/main.go` — CLI entrypoint (was missing from initial commit)
+- ✅ `.gitignore` fix — `/datadream` so `cmd/datadream/` is tracked
+- ✅ Windows cold-install verified: bundled Clang zip → doctor → run hello_friendly (no system compiler on PATH)
+- ✅ Type-check error hints (unknown id, bad draw.*, struct fields, arg counts)
+- ✅ Entity/struct method calls (`self.boost()` → `Type_boost(self)`)
+- ✅ Removed legacy `koda-linux-amd64` from repo
+- ✅ `datadream new` scaffold (`internal/cli/new.go`)
+- ✅ TextMate grammar + minimal VS Code extension (`syntaxes/`, `editor/datadream/`)
+- ✅ Release workflow publishes GitHub Release with Win/Linux/macOS zips
+- ✅ Lex/parse diagnostics with file, line, column, and hints (`compiler/diagnostics.go`)
+- ✅ Frame arena runtime for app programs (`codegen/arena.go`)
+- ✅ `export fn` / `export let` module boundaries (`exports_module.dd`, `libs/demoexports/`)
+- ✅ `match` struct destructuring (`match_destruct.dd`)
+- ✅ `@save` / `@packed` attribute syntax + codegen stubs (`attributes_demo.dd`)
+- ✅ Generic `for x in array` — `DD_Array` runtime, `IterKind` disambiguation (`array_for_in.dd`, `array_demo.dd`)
+- ✅ Level arena runtime (`dd_level_arena_reset` on scene init)
+- ✅ Publish guide ([PUBLISH.md](PUBLISH.md))
+- ✅ String `for ch in "hello"` byte iteration (`string_for_in.dd`)
+- ✅ `list T` sugar for `Array<T>`
+- ✅ Compile-time warning for `.remove()` during array iteration
+- ✅ Frame-budget loop protection — static analysis, entity pools, `@max`, debug while guards ([LOOPS.md](LOOPS.md))
+- ✅ Typecheck warnings (non-blocking) wired through CLI
+- ✅ `@packed` SoA entity layout (`ecs_packed.go`, `BulletPool` parallel arrays)
+- ✅ `@save` binary serialize/deserialize (`fwrite`/`fread` for int/float/bool/Vec/string)
+- ✅ Codegen diagnostics with file, line, column, and hints (`codegen/diagnostic.go`)
+- ✅ Array `.push()` portable C (no GNU statement expressions)
+- ✅ Match struct pattern literals (`v.x == 0.0f`)
+- ✅ Selective `use raylib { InitWindow, … }` with typecheck whitelist
+- ✅ Fixed `isRaylibSymbol` for PascalCase API names (`InitWindow`, etc.)
+- ✅ Windows dist zip built + cold-install verified locally
 
 ---
 
@@ -130,12 +169,26 @@ Status key: ✅ done · 🔄 in progress · 🟡 partial · ❌ not started
 
 Ship when **all** are true:
 
-1. Fresh install from zip → `doctor` ✓ → `run hello_friendly` works (Win/Linux/macOS)
+1. Fresh install from zip → `doctor` ✓ → `run hello_friendly` works (Win/Linux/macOS) — **Windows verified locally; Linux/macOS verified via CI dist-verify (June 2026)**
 2. `coin-runner` builds and runs with assets
 3. `hello_raw` builds with full raylib API
 4. All `examples/` pass `check --codegen` and `build`
 5. Docs in `docs/` match reality
 6. Bindgen regenerates raylib without manual edits
+7. GitHub release zips published for all three platforms — **workflow ready**; run [PUBLISH.md](PUBLISH.md) to attach assets to v1.0.0
+
+---
+
+## Remaining after v1.0 ship
+
+| Priority | Task | Status |
+|----------|------|--------|
+| P2 | `@packed` full SoA entity codegen | ✅ |
+| P2 | `@save` serialize/deserialize | ✅ |
+| P2 | Codegen diagnostics through hint pipeline | ✅ |
+| P4 | LSP (hover, go-to-def) | ❌ |
+| P5 | Selective `use raylib { InitWindow, … }` | ✅ |
+| P5 | `match` type patterns (beyond struct fields) | ❌ |
 
 ---
 

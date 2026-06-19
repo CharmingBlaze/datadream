@@ -7,6 +7,8 @@ import (
 	"datadream/internal/ast"
 )
 
+const defaultEntityPoolMax = 1024
+
 type entityHook struct {
 	name       string
 	hasStart   bool
@@ -20,6 +22,19 @@ type eventHook struct {
 	modifier string
 	key      string
 	name     string
+}
+
+func entityPoolMax(e *ast.EntityDecl) int {
+	max := defaultEntityPoolMax
+	for _, a := range e.Attrs {
+		if a.Name != "max" || len(a.Args) == 0 {
+			continue
+		}
+		if lit, ok := a.Args[0].(*ast.IntLit); ok && lit.Value > 0 {
+			max = int(lit.Value)
+		}
+	}
+	return max
 }
 
 func (g *Generator) collectECSHooks(prog *ast.Program) {
@@ -112,41 +127,26 @@ func sanitizeEventToken(s string) string {
 
 func (g *Generator) emitEntityRegistry(e *ast.EntityDecl) {
 	name := e.Name
-	max := 256
-	g.emit("\n#define %s_MAX %d\n", strings.ToUpper(name), max)
-	g.emit("static %s_Entity* %s_instances[%s_MAX];\n", name, name, strings.ToUpper(name))
-	g.emit("static int %s_count = 0;\n\n", name)
+	upper := strings.ToUpper(name)
+	max := entityPoolMax(e)
 
-	g.emit("static void %s_register(%s_Entity* self) {\n", name, name)
-	g.indent++
-	g.iemit("if (%s_count < %s_MAX) %s_instances[%s_count++] = self;\n",
-		name, strings.ToUpper(name), name, name)
-	g.indent--
-	g.emit("}\n\n")
-
-	g.emit("static void %s_unregister(%s_Entity* self) {\n", name, name)
-	g.indent++
-	g.iemit("for (int i = 0; i < %s_count; i++) {\n", name)
-	g.indent++
-	g.iemit("if (%s_instances[i] == self) {\n", name)
-	g.indent++
-	g.iemit("%s_instances[i] = %s_instances[--%s_count];\n", name, name, name)
-	g.iemit("return;\n")
-	g.indent--
-	g.iemit("}\n")
-	g.indent--
-	g.iemit("}\n")
-	g.indent--
-	g.emit("}\n\n")
+	g.emit("\n#define %s_MAX %d\n", upper, max)
+	g.emit("static %s_Entity %s_pool[%s_MAX];\n\n", name, name, upper)
 
 	g.emit("%s_Entity* %s_spawn(Vec3 pos) {\n", name, name)
 	g.indent++
-	g.iemit("%s_Entity* self = (%s_Entity*)calloc(1, sizeof(%s_Entity));\n", name, name, name)
-	g.iemit("self->position = pos;\n")
+	g.iemit("for (int i = 0; i < %s_MAX; i++) {\n", upper)
+	g.indent++
+	g.iemit("if (%s_pool[i].active) continue;\n", name)
+	g.iemit("%s_Entity* self = &%s_pool[i];\n", name, name)
+	g.iemit("memset(self, 0, sizeof(*self));\n")
 	g.iemit("self->active = true;\n")
-	g.iemit("%s_register(self);\n", name)
+	g.iemit("self->position = pos;\n")
 	g.iemit("%s_start(self);\n", name)
 	g.iemit("return self;\n")
+	g.indent--
+	g.iemit("}\n")
+	g.iemit("return NULL;\n")
 	g.indent--
 	g.emit("}\n\n")
 
@@ -154,18 +154,17 @@ func (g *Generator) emitEntityRegistry(e *ast.EntityDecl) {
 	g.indent++
 	g.iemit("if (!self) return;\n")
 	g.iemit("self->active = false;\n")
-	g.iemit("%s_unregister(self);\n", name)
-	g.iemit("free(self);\n")
 	g.indent--
 	g.emit("}\n\n")
 
 	if len(e.UpdateBlock) > 0 || len(e.OnEvents) > 0 {
 		g.emit("void %s_update_all(float dt) {\n", name)
 		g.indent++
-		g.iemit("for (int i = 0; i < %s_count; i++) {\n", name)
+		g.iemit("for (int i = 0; i < %s_MAX; i++) {\n", upper)
 		g.indent++
-		g.iemit("%s_Entity* self = %s_instances[i];\n", name, name)
-		g.iemit("if (self && self->active) %s_update(self, dt);\n", name)
+		g.iemit("if (!%s_pool[i].active) continue;\n", name)
+		g.iemit("%s_Entity* self = &%s_pool[i];\n", name, name)
+		g.iemit("%s_update(self, dt);\n", name)
 		g.indent--
 		g.iemit("}\n")
 		g.indent--
@@ -175,10 +174,11 @@ func (g *Generator) emitEntityRegistry(e *ast.EntityDecl) {
 	if len(e.DrawBlock) > 0 {
 		g.emit("void %s_draw_all(void) {\n", name)
 		g.indent++
-		g.iemit("for (int i = 0; i < %s_count; i++) {\n", name)
+		g.iemit("for (int i = 0; i < %s_MAX; i++) {\n", upper)
 		g.indent++
-		g.iemit("%s_Entity* self = %s_instances[i];\n", name, name)
-		g.iemit("if (self && self->active) %s_draw(self);\n", name)
+		g.iemit("if (!%s_pool[i].active) continue;\n", name)
+		g.iemit("%s_Entity* self = &%s_pool[i];\n", name, name)
+		g.iemit("%s_draw(self);\n", name)
 		g.indent--
 		g.iemit("}\n")
 		g.indent--
@@ -259,14 +259,15 @@ func (g *Generator) entityIterName(iter ast.Node) string {
 }
 
 func (g *Generator) genForInEntity(entity string, f *ast.ForInStmt) {
+	upper := strings.ToUpper(entity)
 	idxVar := f.Index
 	if idxVar == "" {
 		idxVar = fmt.Sprintf("_iter_i_%s", f.Value)
 	}
-	g.iemit("for (int %s = 0; %s < %s_count; %s++) {\n", idxVar, idxVar, entity, idxVar)
+	g.iemit("for (int %s = 0; %s < %s_MAX; %s++) {\n", idxVar, idxVar, upper, idxVar)
 	g.indent++
-	g.iemit("%s_Entity* %s = %s_instances[%s];\n", entity, f.Value, entity, idxVar)
-	g.iemit("if (!%s || !%s->active) continue;\n", f.Value, f.Value)
+	g.iemit("if (!%s_pool[%s].active) continue;\n", entity, idxVar)
+	g.iemit("%s_Entity* %s = &%s_pool[%s];\n", entity, f.Value, entity, idxVar)
 	if g.varTypes == nil {
 		g.varTypes = map[string]string{}
 	}

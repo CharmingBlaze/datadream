@@ -90,6 +90,29 @@ func (r *Reporter) Warning(file string, line, col int, msg string) {
 	})
 }
 
+func (r *Reporter) WarningHint(file string, line, col int, msg, hint string) {
+	source := r.getLine(file, line)
+	r.Diagnostics = append(r.Diagnostics, Diagnostic{
+		Level:   LevelWarning,
+		Message: msg,
+		File:    file,
+		Line:    line,
+		Col:     col,
+		Source:  source,
+		Hint:    hint,
+	})
+}
+
+func (r *Reporter) WarningCount() int {
+	count := 0
+	for _, d := range r.Diagnostics {
+		if d.Level == LevelWarning {
+			count++
+		}
+	}
+	return count
+}
+
 func (r *Reporter) HasErrors() bool {
 	for _, d := range r.Diagnostics {
 		if d.Level == LevelError {

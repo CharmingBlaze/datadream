@@ -46,6 +46,10 @@ func (g *Generator) emitAppMain(prog *ast.Program) {
 	g.iemit("while (!WindowShouldClose()) {\n")
 	g.indent++
 
+	if g.usesFrameArena {
+		g.iemit("dd_frame_arena_reset();\n")
+	}
+
 	if g.usesQuit {
 		g.iemit("if (_datadream_should_quit) break;\n")
 	}

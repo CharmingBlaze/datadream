@@ -1,0 +1,29 @@
+// match destructuring — struct field patterns bind locals in each arm
+use raylib;
+
+struct Vec2d {
+    x: float;
+    y: float;
+}
+
+fn main() {
+    InitWindow(400, 300, "match destructuring");
+    defer CloseWindow();
+
+    let v = Vec2d { x: 10.0, y: 20.0 };
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        let sum = 0.0;
+        match v {
+            Vec2d { x: 0.0, y } => { sum = y; }
+            Vec2d { x, y } => { sum = x + y; }
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText(TextFormat("sum=%.0f", sum), 10, 10, 20, BLACK);
+        EndDrawing();
+    }
+}

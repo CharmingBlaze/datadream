@@ -13,6 +13,8 @@ type Error struct {
 	Line    int
 	Col     int
 	Message string
+	Hint    string
+	Warning bool
 }
 
 // Check validates obvious type/symbol issues in a parsed program.
@@ -41,9 +43,19 @@ type checker struct {
 	structs    map[string]map[string]bool
 	entities   map[string]map[string]string
 	fns        map[string]bool
-	modules    map[string]bool
-	usesRaylib bool
+	modules      map[string]bool
+	usingMods    []string
+	useWhitelist map[string]map[string]bool
+	usesRaylib   bool
 	errors     []Error
+	forInStack []forInContext
+	lifecycle  []lifecycleCtx
+	loopDepth  int
+}
+
+type forInContext struct {
+	kind      ast.IterKind
+	arrayName string // IterArray over a named variable
 }
 
 func (c *checker) collectDecls(prog *ast.Program) {
@@ -83,10 +95,12 @@ func (c *checker) collectDecls(prog *ast.Program) {
 			if n.Path == "raylib" || n.Path == "graphics" {
 				c.usesRaylib = true
 			}
+			c.registerUseWhitelist(n.Path, n.Symbols)
 			if n.Alias != "" {
 				c.modules[n.Alias] = true
 			} else {
 				c.modules[n.Path] = true
+				c.usingMods = append(c.usingMods, n.Path)
 			}
 		case *ast.UsingStmt:
 			if n.Path == "raylib" || n.Path == "graphics" {
@@ -152,6 +166,27 @@ func (c *checker) errorAt(pos ast.Position, format string, args ...any) {
 	})
 }
 
+func (c *checker) errorAtHint(pos ast.Position, msg, hint string) {
+	c.errors = append(c.errors, Error{
+		File:    pos.File,
+		Line:    pos.Line,
+		Col:     pos.Col,
+		Message: msg,
+		Hint:    hint,
+	})
+}
+
+func (c *checker) warnAtHint(pos ast.Position, msg, hint string) {
+	c.errors = append(c.errors, Error{
+		File:    pos.File,
+		Line:    pos.Line,
+		Col:     pos.Col,
+		Message: msg,
+		Hint:    hint,
+		Warning: true,
+	})
+}
+
 func (c *checker) checkNodes(nodes []ast.Node) {
 	for _, n := range nodes {
 		c.checkNode(n)
@@ -166,6 +201,8 @@ func (c *checker) checkNode(node ast.Node) {
 	case *ast.LetStmt:
 		c.checkLet(n)
 	case *ast.AssignStmt:
+		c.checkDrawMutation(n)
+		c.checkPerFrameAllocation(n)
 		c.checkExpr(n.Target)
 		c.checkExpr(n.Value)
 	case *ast.IfStmt:
@@ -177,49 +214,67 @@ func (c *checker) checkNode(node ast.Node) {
 		}
 		c.checkBlock(n.Else)
 	case *ast.ForInStmt:
+		c.resolveForIn(n)
+		c.checkNestedEntityForIn(n)
+		ctx := forInContext{kind: n.Kind}
+		if n.Kind == ast.IterArray {
+			if id, ok := n.Iter.(*ast.Ident); ok {
+				ctx.arrayName = id.Name
+			}
+		}
+		c.forInStack = append(c.forInStack, ctx)
+		c.loopDepth++
 		c.pushScope()
-		entityName := ""
-		if ident, ok := n.Iter.(*ast.Ident); ok {
-			if _, ok := c.entities[ident.Name]; ok {
-				entityName = ident.Name
-			}
+		if n.Index != "" {
+			c.declare(n.Index, "int")
 		}
-		if entityName != "" {
-			if n.Index != "" {
-				c.declare(n.Index, "int")
-			}
-			c.declare(n.Value, entityName+"_Entity*")
-		} else {
-			if n.Index != "" {
-				c.declare(n.Index, "int")
-			}
-			c.declare(n.Value, "int")
-		}
+		c.declare(n.Value, c.forInBindingType(n))
 		c.checkExpr(n.Iter)
 		c.checkBlock(n.Body)
 		c.popScope()
+		c.loopDepth--
+		c.forInStack = c.forInStack[:len(c.forInStack)-1]
 	case *ast.ForRangeStmt:
+		c.checkForRangeBound(n)
+		c.loopDepth++
 		c.pushScope()
 		c.declare(n.Var, "int")
 		c.checkExpr(n.From)
 		c.checkExpr(n.To)
 		c.checkBlock(n.Body)
 		c.popScope()
+		c.loopDepth--
 	case *ast.WhileStmt:
+		c.loopDepth++
 		c.checkExpr(n.Condition)
 		c.checkBlock(n.Body)
+		c.loopDepth--
 	case *ast.LoopStmt:
+		c.checkLoopInLifecycle(n)
+		c.loopDepth++
 		c.checkBlock(n.Body)
+		c.loopDepth--
 	case *ast.MatchStmt:
 		c.checkExpr(n.Value)
 		for _, arm := range n.Arms {
-			c.checkExpr(arm.Pattern)
+			c.pushScope()
+			if pat, ok := arm.Pattern.(*ast.StructLit); ok && pat.IsPattern {
+				c.bindStructPattern(pat)
+			} else {
+				c.checkExpr(arm.Pattern)
+			}
 			c.checkBlock(arm.Body)
+			c.popScope()
 		}
-		c.checkBlock(n.Default)
+		if len(n.Default) > 0 {
+			c.pushScope()
+			c.checkBlock(n.Default)
+			c.popScope()
+		}
 	case *ast.DeferStmt:
 		c.checkExpr(n.Call)
 	case *ast.ExprStmt:
+		c.checkPerFrameAllocation(n)
 		c.checkExpr(n.Expr)
 	case *ast.BreakStmt, *ast.ContinueStmt:
 		// no-op
@@ -240,10 +295,19 @@ func (c *checker) checkNode(node ast.Node) {
 		c.popScope()
 	case *ast.LifecycleBlock:
 		c.pushScope()
-		if n.Name == "update" {
+		switch n.Name {
+		case "update":
+			c.pushLifecycle(lcUpdate)
 			c.declare("dt", "float")
+		case "draw":
+			c.pushLifecycle(lcDraw)
+		case "start":
+			c.pushLifecycle(lcStart)
 		}
 		c.checkNodes(n.Body)
+		if n.Name == "update" || n.Name == "draw" || n.Name == "start" {
+			c.popLifecycle()
+		}
 		c.popScope()
 	case *ast.SceneDecl:
 		c.checkNodes(n.Stmts)
@@ -251,19 +315,26 @@ func (c *checker) checkNode(node ast.Node) {
 		c.checkBlock(n.StartBlock)
 		c.popScope()
 		c.pushScope()
+		c.pushLifecycle(lcSceneUpdate)
 		c.checkBlock(n.UpdateBlock)
+		c.popLifecycle()
 		c.popScope()
 		c.pushScope()
+		c.pushLifecycle(lcSceneDraw)
 		c.checkBlock(n.DrawBlock)
+		c.popLifecycle()
 		c.popScope()
 	case *ast.EntityDecl:
 		c.pushScope()
 		c.declare("self", n.Name+"_Entity")
+		c.pushLifecycle(lcEntityStart)
 		c.checkBlock(n.StartBlock)
+		c.popLifecycle()
 		c.popScope()
 		c.pushScope()
 		c.declare("self", n.Name+"_Entity")
 		c.declare("dt", "float")
+		c.pushLifecycle(lcEntityUpdate)
 		c.checkBlock(n.UpdateBlock)
 		for _, ev := range n.OnEvents {
 			c.pushScope()
@@ -271,10 +342,13 @@ func (c *checker) checkNode(node ast.Node) {
 			c.checkBlock(ev.Body)
 			c.popScope()
 		}
+		c.popLifecycle()
 		c.popScope()
 		c.pushScope()
 		c.declare("self", n.Name+"_Entity")
+		c.pushLifecycle(lcEntityDraw)
 		c.checkBlock(n.DrawBlock)
+		c.popLifecycle()
 		c.popScope()
 		for _, m := range n.Methods {
 			c.pushScope()
@@ -292,7 +366,9 @@ func (c *checker) checkNode(node ast.Node) {
 	case *ast.SystemDecl:
 		c.pushScope()
 		c.declare("dt", "float")
+		c.pushLifecycle(lcSystem)
 		c.checkBlock(n.Body)
+		c.popLifecycle()
 		c.popScope()
 	case *ast.SpawnStmt:
 		if n.At != nil {
@@ -349,6 +425,7 @@ func (c *checker) checkLet(l *ast.LetStmt) {
 	if l.Value != nil {
 		c.checkExpr(l.Value)
 	}
+	c.checkPerFrameAllocation(l)
 }
 
 func (c *checker) registerLet(l *ast.LetStmt) {
@@ -376,11 +453,19 @@ func (c *checker) checkExpr(node ast.Node) {
 		if namespaceRoots[n.Name] || builtinFns[n.Name] || c.fns[n.Name] {
 			return
 		}
-		if c.usesRaylib && isRaylibSymbol(n.Name) {
+		if c.usesRaylib && (isRaylibSymbol(n.Name) || isRaylibConstant(n.Name)) {
+			if c.hasSelectiveUsingImport() && !c.symbolAllowedUnqualified(n.Name) {
+				c.errorAtHint(n.Pos(),
+					fmt.Sprintf("symbol %q is not imported", n.Name),
+					"add it to the use raylib { ... } list")
+				return
+			}
 			return
 		}
 		if _, ok := c.lookup(n.Name); !ok {
-			c.errorAt(n.Pos(), "unknown identifier %q", n.Name)
+			c.errorAtHint(n.Pos(),
+				fmt.Sprintf("unknown identifier %q", n.Name),
+				c.hintUnknownIdentifier(n.Name))
 		}
 	case *ast.BinaryExpr:
 		c.checkExpr(n.Left)
@@ -423,7 +508,14 @@ func (c *checker) checkExpr(node ast.Node) {
 func (c *checker) checkCall(call *ast.CallExpr) {
 	if field, ok := call.Callee.(*ast.FieldExpr); ok {
 		if obj, ok := field.Object.(*ast.Ident); ok {
+			c.checkRemoveDuringForIn(obj.Name, field.Field, call)
 			if c.modules[obj.Name] {
+				path := c.importPathFor(obj.Name)
+				if wl, ok := c.useWhitelist[path]; ok && wl != nil && !wl[field.Field] {
+					c.errorAtHint(call.Pos(),
+						fmt.Sprintf("symbol %q is not imported", field.Field),
+						"add it to the use "+obj.Name+" { ... } list")
+				}
 				for _, arg := range call.Args {
 					c.checkExpr(arg)
 				}
@@ -434,8 +526,8 @@ func (c *checker) checkCall(call *ast.CallExpr) {
 				return
 			}
 		}
-		c.checkExpr(call.Callee)
 	}
+	c.checkExpr(call.Callee)
 	for _, arg := range call.Args {
 		c.checkExpr(arg)
 	}
@@ -448,12 +540,16 @@ func (c *checker) checkNamespaceCall(ns, method string, call *ast.CallExpr) {
 	}
 	spec, ok := methods[method]
 	if !ok {
-		c.errorAt(call.Pos(), "unknown method %s.%s", ns, method)
+		c.errorAtHint(call.Pos(),
+			fmt.Sprintf("unknown method %s.%s", ns, method),
+			hintNamespaceMethod(ns, method))
 		return
 	}
 	n := len(call.Args)
 	if n < spec.minArgs || (spec.maxArgs >= 0 && n > spec.maxArgs) {
-		c.errorAt(call.Pos(), "%s.%s expects %s, got %d", ns, method, argRange(spec), n)
+		c.errorAtHint(call.Pos(),
+			fmt.Sprintf("%s.%s expects %s, got %d", ns, method, argRange(spec), n),
+			fmt.Sprintf("%s.%s takes %s", ns, method, argRangeHint(spec)))
 		return
 	}
 	if spec.optionFields != nil {
@@ -465,7 +561,9 @@ func (c *checker) checkNamespaceCall(ns, method string, call *ast.CallExpr) {
 			if obj, ok := call.Args[idx].(*ast.ObjectLit); ok {
 				for k := range obj.Fields {
 					if !spec.optionFields[k] {
-						c.errorAt(obj.Pos(), "unknown field %q in %s.%s options", k, ns, method)
+						c.errorAtHint(obj.Pos(),
+							fmt.Sprintf("unknown field %q in %s.%s options", k, ns, method),
+							hintOptionFields(ns, method))
 					}
 				}
 			}
@@ -525,7 +623,9 @@ func (c *checker) checkStructLit(s *ast.StructLit) {
 	}
 	for k := range s.Fields {
 		if !fields[k] {
-			c.errorAt(s.Pos(), "unknown field %q in struct %s", k, s.TypeName)
+			c.errorAtHint(s.Pos(),
+				fmt.Sprintf("unknown field %q in struct %s", k, s.TypeName),
+				hintStructFields(fields))
 		}
 	}
 	for _, v := range s.Fields {
@@ -550,9 +650,22 @@ func typeName(t *ast.TypeExpr) string {
 	if t == nil {
 		return "int"
 	}
+	if (t.Name == "Array" || t.Name == "list") && len(t.Params) == 1 {
+		return "Array<" + typeName(t.Params[0]) + ">"
+	}
+	if len(t.Params) > 0 {
+		parts := make([]string, len(t.Params))
+		for i, p := range t.Params {
+			parts[i] = typeName(p)
+		}
+		return fmt.Sprintf("%s<%s>", t.Name, strings.Join(parts, ", "))
+	}
 	name := t.Name
 	if t.Array {
 		name += "[]"
+	}
+	if t.Optional {
+		name += "?"
 	}
 	return name
 }
@@ -673,6 +786,8 @@ func (c *checker) inferType(node ast.Node) string {
 		}
 	case *ast.StructLit:
 		return n.TypeName
+	case *ast.ArrayLit:
+		return "Array<" + inferArrayElemType(n) + ">"
 	case *ast.SpawnStmt:
 		return n.Entity + "_Entity*"
 	case *ast.FieldExpr:
@@ -711,17 +826,51 @@ func isRaylibSymbol(name string) bool {
 	if name == "" {
 		return false
 	}
-	for i, r := range name {
-		if r >= 'A' && r <= 'Z' {
-			continue
-		}
-		if i > 0 && r >= '0' && r <= '9' {
-			continue
-		}
-		if r == '_' {
+	if name[0] < 'A' || name[0] > 'Z' {
+		return false
+	}
+	for _, r := range name[1:] {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
 			continue
 		}
 		return false
 	}
-	return name[0] >= 'A' && name[0] <= 'Z'
+	return true
+}
+
+func (c *checker) bindStructPattern(pat *ast.StructLit) {
+	fields, known := c.structs[pat.TypeName]
+	if !known {
+		c.errorAt(pat.Pos(), "unknown struct %q in match pattern", pat.TypeName)
+	}
+	for field, node := range pat.Fields {
+		if known && !fields[field] {
+			c.errorAt(pat.Pos(), "struct %q has no field %q", pat.TypeName, field)
+		}
+		if bind, ok := node.(*ast.Ident); ok && bind.Name == field {
+			c.declare(field, "float")
+			continue
+		}
+		c.checkExpr(node)
+	}
+}
+
+func inferArrayElemType(arr *ast.ArrayLit) string {
+	if len(arr.Elements) == 0 {
+		return "int"
+	}
+	switch n := arr.Elements[0].(type) {
+	case *ast.FloatLit:
+		return "float"
+	default:
+		_ = n
+		return "int"
+	}
+}
+
+func (c *checker) arrayElemType(name string) (string, bool) {
+	if t, ok := c.lookup(name); ok && strings.HasPrefix(t, "array:") {
+		return strings.TrimPrefix(t, "array:"), true
+	}
+	return "", false
 }

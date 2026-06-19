@@ -266,11 +266,11 @@ let tex = assets.texture("player.png"); // friendly — shutdown cleanup (planne
 
 | Layer | Contents | Status |
 |-------|----------|--------|
-| **1 — Raw language** | lexer, parser, AST, `fn main`, `let`, if/while/for/**loop**, **match**, **defer**, struct literals, modules, C calls | ✅ Mostly done |
-| **2 — raylib** | bindgen, `use raylib`, link flags, raw 2D/3D hello | ✅ Windows verified |
-| **3 — Quality of life** | colors, vec2/3, interpolation, `\|\|/&&`, **loop/defer/match**, good errors, fmt | 🟡 colors/vec/control flow done; errors/fmt partial |
-| **4 — Friendly wrappers** | app/window/draw, input, screen, random, sprites, math, time, audio/assets partial | 🟡 2D game API works; ui.* pending |
-| **5 — Engine sugar** | scenes, entities, UI module, editor | 🟡 scene hooks exist; ECS partial |
+| **1 — Raw language** | lexer, parser, AST, `fn main`, `let`, if/while/for/**loop**, **match**, **defer**, struct literals, **struct/entity methods**, modules, C calls | ✅ |
+| **2 — raylib** | bindgen, `use raylib`, link flags, raw 2D/3D hello | ✅ CI all platforms |
+| **3 — Quality of life** | colors, vec2/3, interpolation, `\|\|/&&`, **loop/defer/match**, **typecheck + error hints** | 🟡 parser/lexer hints partial |
+| **4 — Friendly wrappers** | app/window/draw, input, screen, random, sprites, math, time, **audio/assets**, **ui.*** | ✅ |
+| **5 — Engine sugar** | scenes, entities, ECS, spawn, systems, events | ✅ · editor ❌ |
 
 ---
 

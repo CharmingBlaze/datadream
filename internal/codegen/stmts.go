@@ -14,6 +14,20 @@ func (g *Generator) genLet(l *ast.LetStmt) {
 		g.genLetSpawn(l.Name, spawn)
 		return
 	}
+	if l.TypeHint != nil && (l.TypeHint.Name == "Array" || l.TypeHint.Name == "list") && len(l.TypeHint.Params) == 1 {
+		elemType := l.TypeHint.Params[0].Name
+		var lit *ast.ArrayLit
+		if arr, ok := l.Value.(*ast.ArrayLit); ok {
+			lit = arr
+		}
+		g.genLetArray(l.Name, elemType, lit)
+		return
+	}
+	if arr, ok := l.Value.(*ast.ArrayLit); ok && (l.TypeHint == nil || l.TypeHint.Name == "") {
+		elemType := g.inferArrayElemType(arr)
+		g.genLetArray(l.Name, elemType, arr)
+		return
+	}
 	t := "int"
 	if l.TypeHint != nil {
 		t = g.typeToC(l.TypeHint)
@@ -132,6 +146,7 @@ func (g *Generator) genAssign(a *ast.AssignStmt) {
 }
 
 func (g *Generator) genReturn(r *ast.ReturnStmt) {
+	g.emitDefersForReturn()
 	if r.Value == nil {
 		g.iemit("return;\n")
 		return
@@ -171,19 +186,7 @@ func (g *Generator) genIf(i *ast.IfStmt) {
 }
 
 func (g *Generator) genForIn(f *ast.ForInStmt) {
-	if entity := g.entityIterName(f.Iter); entity != "" {
-		g.genForInEntity(entity, f)
-		return
-	}
-	// Fallback for generic collections (arrays not yet implemented).
-	iterName := fmt.Sprintf("_iter_%s", f.Value)
-	g.iemit("/* for %s in ... */\n", f.Value)
-	g.iemit("for (int %s = 0; %s < _datadream_array_len; %s++) {\n", iterName, iterName, iterName)
-	g.indent++
-	g.iemit("/* auto %s = array[%s]; */\n", f.Value, iterName)
-	g.genStmts(f.Body)
-	g.indent--
-	g.iemit("}\n")
+	g.genForInByKind(f)
 }
 
 func (g *Generator) genForRange(f *ast.ForRangeStmt) {
@@ -203,10 +206,23 @@ func (g *Generator) genForRange(f *ast.ForRangeStmt) {
 }
 
 func (g *Generator) genWhile(w *ast.WhileStmt) {
+	guard := ""
+	if g.inPerFrameLifecycle() {
+		guard = fmt.Sprintf("_dd_while_guard_%d", g.whileGuardSerial)
+		g.whileGuardSerial++
+		g.iemit("#ifndef NDEBUG\n")
+		g.iemit("int %s = 0;\n", guard)
+		g.iemit("#endif\n")
+	}
 	g.iemit("while (")
 	g.genExpr(w.Condition)
 	g.emit(") {\n")
 	g.indent++
+	if guard != "" {
+		g.iemit("#ifndef NDEBUG\n")
+		g.iemit("if (++%s > 10000) { TraceLog(LOG_WARNING, \"DataDream: while loop exceeded 10000 iterations in a per-frame block\"); break; }\n", guard)
+		g.iemit("#endif\n")
+	}
 	g.genStmts(w.Body)
 	g.indent--
 	g.iemit("}\n")
@@ -307,21 +323,37 @@ func (g *Generator) genDestroy(d *ast.DestroyStmt) {
 }
 
 func (g *Generator) genMatch(m *ast.MatchStmt) {
-	// Emit as if-else chain since C switch only handles integers
+	valRef := ""
+	wrapped := false
+	if ident, ok := m.Value.(*ast.Ident); ok {
+		valRef = ident.Name
+	} else {
+		wrapped = true
+		valRef = "_match_val"
+		g.iemit("{\n")
+		g.indent++
+		g.iemit("typeof(")
+		g.genExpr(m.Value)
+		g.emit(") %s = ", valRef)
+		g.genExpr(m.Value)
+		g.emit(";\n")
+	}
+
 	first := true
 	for _, arm := range m.Arms {
+		if pat, ok := arm.Pattern.(*ast.StructLit); ok && pat.IsPattern {
+			g.genStructMatchArm(first, valRef, pat, arm.Body)
+			first = false
+			continue
+		}
 		if first {
 			g.iemit("if (")
-			g.genExpr(m.Value)
-			g.emit(" == ")
-			g.genExpr(arm.Pattern)
+			g.genMatchEquality(valRef, arm.Pattern)
 			g.emit(") {\n")
 			first = false
 		} else {
 			g.iemit("} else if (")
-			g.genExpr(m.Value)
-			g.emit(" == ")
-			g.genExpr(arm.Pattern)
+			g.genMatchEquality(valRef, arm.Pattern)
 			g.emit(") {\n")
 		}
 		g.indent++
@@ -341,6 +373,51 @@ func (g *Generator) genMatch(m *ast.MatchStmt) {
 	if !first || len(m.Default) > 0 {
 		g.iemit("}\n")
 	}
+	if wrapped {
+		g.indent--
+		g.iemit("}\n")
+	}
+}
+
+func (g *Generator) genMatchEquality(valRef string, pattern ast.Node) {
+	g.emit("%s == ", valRef)
+	g.genExpr(pattern)
+}
+
+func (g *Generator) genStructMatchArm(first bool, valRef string, pat *ast.StructLit, body []ast.Node) {
+	conds := g.structPatternConditions(valRef, pat)
+	if first {
+		g.iemit("if (%s) {\n", conds)
+	} else {
+		g.iemit("} else if (%s) {\n", conds)
+	}
+	g.indent++
+	for field, node := range pat.Fields {
+		if bind, ok := node.(*ast.Ident); ok && bind.Name == field {
+			g.iemit("float %s = %s.%s;\n", field, valRef, field)
+		}
+	}
+	g.genStmts(body)
+	g.indent--
+}
+
+func (g *Generator) structPatternConditions(valRef string, pat *ast.StructLit) string {
+	var parts []string
+	for field, node := range pat.Fields {
+		if bind, ok := node.(*ast.Ident); ok && bind.Name == field {
+			continue
+		}
+		prev := g.sb
+		g.sb = strings.Builder{}
+		g.genExpr(node)
+		rhs := g.sb.String()
+		g.sb = prev
+		parts = append(parts, fmt.Sprintf("%s.%s == %s", valRef, field, rhs))
+	}
+	if len(parts) == 0 {
+		return "1"
+	}
+	return strings.Join(parts, " && ")
 }
 
 func (g *Generator) genOnEvent(o *ast.OnEventStmt) {

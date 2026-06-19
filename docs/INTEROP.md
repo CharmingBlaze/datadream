@@ -76,7 +76,7 @@ Raylib is auto-linked when `app` + `window` + `draw` are present.
 
 ## Raw bindings file
 
-`libs/raylib/raw.dd` — ~555 functions from `raylib.h`.
+`libs/raylib/raw.dd` — ~548 functions from `raylib.h`.
 
 Regenerate:
 

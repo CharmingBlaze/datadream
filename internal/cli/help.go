@@ -24,6 +24,9 @@ USAGE:
   datadream <command> [arguments]
 
 COMMANDS:
+  new   <project-name>                Create a new game project (game.dd, assets/, README)
+  ide   [path] [--port <n>]           Launch DataDream Studio web IDE
+  studio [path]                       Launch DataDream Studio desktop app (Wails)
   run   <file.dd>                     Compile and run a DataDream file
   build <file.dd> [options]           Compile to a binary
   check <file.dd> [--codegen]           Check syntax (add --codegen to run codegen)
@@ -55,6 +58,7 @@ BIND OPTIONS:
   -I<path>              Add include path for preprocessing
 
 EXAMPLES:
+  datadream new my-game
   datadream doctor
   datadream run hello.dd
   datadream build game.dd --release -lraylib

@@ -74,6 +74,10 @@ func (p *Parser) parseTopLevel() ast.Node {
 		return p.parseExtern()
 	case lexer.TOKEN_INCLUDE:
 		return p.parseInclude()
+	case lexer.TOKEN_EXPORT:
+		return p.parseExportDecl()
+	case lexer.TOKEN_AT:
+		return p.parseAttributedDecl()
 	case lexer.TOKEN_FN:
 		p.advance()
 		return p.parseFnDecl(false, false)

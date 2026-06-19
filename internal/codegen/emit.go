@@ -14,6 +14,3 @@ func (g *Generator) iemit(format string, args ...interface{}) {
 	fmt.Fprintf(&g.sb, format, args...)
 }
 
-func (g *Generator) addError(msg string) {
-	g.errors = append(g.errors, msg)
-}

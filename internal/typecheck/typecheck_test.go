@@ -85,6 +85,21 @@ draw { draw.nope("x"); }`)
 	if !hasError(errs, "unknown method draw.nope") {
 		t.Fatalf("expected unknown method error, got %v", errs)
 	}
+	if len(errs) == 0 || errs[0].Hint == "" || !strings.Contains(errs[0].Hint, "draw.*") {
+		t.Fatalf("expected hint listing draw methods, got %v", errs)
+	}
+}
+
+func TestCheckUnknownIdentifierHint(t *testing.T) {
+	errs := parseCheck(t, `app "T";
+window { size: 100, 100; title: "T"; }
+draw { let x = score + 1; }`)
+	if !hasError(errs, `unknown identifier "score"`) {
+		t.Fatalf("expected unknown identifier error, got %v", errs)
+	}
+	if len(errs) == 0 || errs[0].Hint == "" {
+		t.Fatalf("expected hint for unknown identifier, got %v", errs)
+	}
 }
 
 func TestCheckValidProgram(t *testing.T) {

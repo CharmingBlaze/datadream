@@ -1,21 +1,36 @@
-# Handoff — Continue DataDream Language Development
+# Handoff — DataDream Language Development
 
 **For:** the next programmer or agent session picking up this repo  
 **Last updated:** June 2026  
-**Compiler:** 0.1.0 · **raylib:** 6.0 · **Progress:** ~60% toward v1
+**Compiler:** 0.1.0 · **raylib:** 6.0 · **Progress:** ~**98% v1-complete** — language, tooling, and all 24 examples build; **ship gate:** GitHub Release v1.0.0 ([PUBLISH.md](PUBLISH.md))
+
+---
+
+## Executive summary
+
+DataDream is a **Go compiler** that turns `.dd` source into **C**, then links with **bundled Clang + raylib 6.0** to produce a native binary. End users never need Go.
+
+**What works today:** full friendly Layer 4 API, ECS (Layer 5), raw raylib interop (~548 functions), type checker with hints, growable `Array<T>` with `for x in array`, entity iteration, module exports, frame/level arenas, release packaging for Win/Linux/macOS, `datadream new`, VS Code grammar.
+
+**Primary blocker for v1.0 ship:** publish the GitHub Release (workflow is ready; maintainer runs [PUBLISH.md](PUBLISH.md)).
+
+**Primary language gaps (post-ship):** LSP, selective `use raylib { … }`, codegen hints at every error site (infrastructure done).
 
 ---
 
 ## Continue from here
 
-DataDream compiles `.dd` → C → Clang → native binary. **Windows end-to-end works.** The language core and friendly Layer 4 API are largely in place. Your job is to close the remaining language gaps and ship multi-platform builds.
+### Read first (~20 min)
 
-**Read first (15 min):**
-1. [VISION.md](VISION.md) — anti-goals are non-negotiable
-2. [SYNTAX.md](SYNTAX.md) — keywords/operators by layer (Layer 5 = app sugar)
-3. [LANGUAGE.md](LANGUAGE.md) — what users can write today
+| Order | Doc | Why |
+|-------|-----|-----|
+| 1 | [VISION.md](VISION.md) | Anti-goals are non-negotiable |
+| 2 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline, package map |
+| 3 | [LANGUAGE.md](LANGUAGE.md) | What users can write today |
+| 4 | [SYNTAX.md](SYNTAX.md) | Keywords/operators by layer |
+| 5 | [ROADMAP.md](ROADMAP.md) | Task status table |
 
-**Verify your environment:**
+### Verify your environment
 
 ```bash
 go build -o datadream ./cmd/datadream
@@ -24,167 +39,211 @@ datadream sdk install clang
 datadream sdk install raylib
 datadream doctor
 
-go test ./internal/parser/... ./internal/codegen/... ./internal/colors/...
+go test ./internal/...
 datadream check --codegen examples/raylib/hello_3d.dd
-datadream check --codegen examples/raylib/control_flow.dd
-datadream check --codegen examples/raylib/commands.dd
-datadream check --codegen examples/raylib/audio_demo.dd
-datadream check --codegen examples/raylib/ui_demo.dd
+datadream check --codegen examples/raylib/array_demo.dd
+datadream check --codegen examples/coin-runner/game.dd
 datadream build examples/raylib/hello_friendly.dd -o hello
 ```
 
-All of the above should pass on Windows with a populated SDK.
+**Release smoke test (maintainers, Windows):**
+
+```powershell
+.\scripts\build-dist.ps1
+.\scripts\verify-dist.ps1 dist\datadream-windows-amd64.zip
+```
+
+Cold-install on Windows with bundled Clang (~188 MB zip) is verified: extract → `doctor` ✓ → `run hello_friendly` with no system compiler on PATH. Linux/macOS cold-install verified via CI `dist-verify`.
 
 ---
 
 ## What is done (do not redo)
 
+### Compiler & distribution
+- ✅ `cmd/datadream/main.go` → `internal/cli.Run`
+- ✅ CI: `go test`, example builds, bindgen-check, dist-verify (Win/Linux/macOS)
+- ✅ `scripts/build-dist.ps1` / `build-dist.sh` + `packdist --verify`
+- ✅ `.github/workflows/release.yml` — publish zips to GitHub Release
+- ✅ Windows cold-install with bundled llvm-mingw
+- ✅ `datadream new` — scaffold `game.dd`, `assets/`, README
+- ✅ VS Code extension + TextMate grammar (`syntaxes/`, `editor/datadream/`)
+
 ### Language core (Layer 1)
-- `let`, `fn`, `if`/`else`, `while`, **`loop`**, **`for i in 0..n` / `0..=n`**, **`match`**, **`defer`**, `break`, `continue`, `return`
-- Struct literals, `use`/`using`/`extern c`, `include`
-- `none` alias for `null`
-- C binding parse: keyword field names (`shader`, `data`), `float[]`, `180.0f` suffix
+- ✅ `let`, `fn`, `if`/`else`, `while`, **`loop`**, **`for i in 0..n` / `0..=n`**, **`match`**, **`defer`**, `break`, `continue`, `return`
+- ✅ **`let name: Type;`** — type-only declaration (no `=`) for empty arrays etc.
+- ✅ Struct literals, **`struct` / `entity` methods** (`obj.method()` → `Type_method(&obj, …)`)
+- ✅ **`match` struct destructuring** (`Point { x, y }`)
+- ✅ `use`/`using`/`extern c`, `include`
+- ✅ `none` alias for `null`
+- ✅ C binding parse: keyword field names, `float[]`, `180.0f` suffix
+
+### Arrays & iteration (Layer 1 + 5)
+- ✅ **`Array<T>`** / **`list T`** sugar → growable **`DD_Array`** runtime (`data`, `len`, `cap`, `elem_size`)
+- ✅ Methods: `.push()`, `.len` / `.len()`, `.pop()`, `.remove(i)`, `.remove_dead()`
+- ✅ **`for x in array`** — disambiguated in **type checker** via `IterKind` (not parser)
+- ✅ **`for e in Entity`** — ECS registry iteration
+- ✅ **`for ch in "hello"`** / string variable — UTF-8 **byte** iteration (`byte` binding)
+- ✅ Compile-time **warning** (non-blocking) for `.remove()` on same array during `for x in`
+- ✅ Examples: `array_for_in.dd`, `array_demo.dd`, `string_for_in.dd`, `array_remove_warning.dd`
+
+**Four `for x in …` forms** (see [LANGUAGE.md](LANGUAGE.md)):
+
+| Syntax | AST / kind | Where resolved |
+|--------|------------|----------------|
+| `for i in 0..10` | `ForRangeStmt` | parser |
+| `for e in Enemy` | `ForInStmt`, `IterEntity` | typecheck |
+| `for x in arr` / `[1,2,3]` | `ForInStmt`, `IterArray` | typecheck |
+| `for ch in "hi"` / `msg` | `ForInStmt`, `IterString` | typecheck |
+
+Key files: `internal/ast/ast.go` (`IterKind`), `internal/typecheck/forin.go`, `internal/codegen/array.go`, `internal/codegen/stmts.go`.
 
 ### Raw raylib (Layer 2)
-- `use raylib;` + `libs/raylib/raw.dd` (~555 functions)
-- `datadream bind` from headers
-- `examples/raylib/hello_raw.dd`, `hello_using.dd`, **`hello_3d.dd`** (v1 target, uses `defer CloseWindow()`)
+- ✅ `use raylib;` + `libs/raylib/raw.dd` (~548 functions)
+- ✅ `datadream bind` from headers
+- ✅ `hello_raw.dd`, `hello_using.dd`, **`hello_3d.dd`**
 
-### Friendly API (Layer 4) — mostly done
-| Namespace | Status | Codegen |
-|-----------|--------|---------|
-| `draw.*` | ✅ | `codegen/draw.go`, `friendly.go` |
-| `input.*` / `keys.*` / mouse | ✅ | `game_runtime.go`, `friendly.go` |
-| `screen.*` | ✅ | `friendly.go` |
-| `random.*` | ✅ | `game_runtime.go` |
-| `math.*` / `time.*` | ✅ | `stdlib.go`, `friendly.go` |
-| `collision.*` | ✅ | `stdlib.go` |
-| `audio.*` / `assets.*` | ✅ | `stdlib.go`, `stdlib_runtime.go`, `audio_demo.dd` |
-| `ui.*` (raygui) | ✅ | `ui.go`, `ui_runtime.go`, `ui_demo.dd` |
+### Friendly API (Layer 4)
+| Namespace | Codegen |
+|-----------|---------|
+| `draw.*` | `codegen/draw.go`, `friendly.go` |
+| `input.*` / `keys.*` / mouse | `game_runtime.go`, `friendly.go` |
+| `screen.*` | `friendly.go` |
+| `random.*` | `game_runtime.go` |
+| `math.*` / `time.*` | `stdlib.go`, `friendly.go` |
+| `collision.*` | `stdlib.go` |
+| `audio.*` / `assets.*` | `stdlib.go`, `stdlib_runtime.go` |
+| `ui.*` (raygui) | `ui.go`, `ui_runtime.go` |
 
-### App sugar (Layer 5) — ✅ core wired
+Living reference: `examples/raylib/commands.dd`.
+
+### App sugar (Layer 5)
 - ✅ `app`, `window { }`, `start` / `update` / `draw` → raylib loop
-- ✅ `scene`, `entity`, `spawn`, `destroy`, `system`, `on`, entity `draw` — registry + app loop
-- ✅ `for x in Entity` iterates live instances
-- 🟡 Generic `for x in array` still stubbed; scene-local `let` scoping minimal
+- ✅ `scene`, `entity`, `spawn`, `destroy`, `system`, `on`, entity `draw`
+- ✅ Entity `fn` methods + `self.method()` calls
+- ✅ **`export fn` / `export let`** — module boundaries (`exports_module.dd`, `libs/demoexports/`)
 
-### Examples (all pass `check --codegen` on Windows)
+### Memory model
+- ✅ **Frame arena** — `dd_frame_arena_reset()` each app frame (`codegen/arena.go`)
+- ✅ **Level arena** — `dd_level_arena_reset()` on scene init
+- ✅ Documented in [LANGUAGE.md](LANGUAGE.md) § Memory
+
+### Type checker & diagnostics
+- ✅ `internal/typecheck/` — default phase in `datadream check`
+- ✅ Hints: unknown identifiers, bad namespace methods, arg counts, struct/entity fields
+- ✅ **`internal/errors/`** — Rust-style snippet + caret + hint
+- ✅ Lex/parse diagnostics with hints (`compiler/diagnostics.go`)
+- ✅ **Warnings** — typecheck warnings do not fail `check`/`compile` (`Diagnostic.Warning`, yellow output)
+- 🟡 Codegen-stage errors still mostly bare strings
+
+### Attributes
+- ✅ **`@packed` entity** — SoA pool (`EntityPool` + `idx` handle), field access via pool arrays
+- ✅ **`@save` struct** — binary `fwrite`/`fread` serialize/deserialize (`attributes_demo.dd`)
+
+---
+
+## Examples (24 `.dd` files)
+
+All core examples pass `datadream check --codegen`. CI builds on Linux + macOS.
+
 ```
-examples/beginner/clicker.dd       ← start here for beginners
-examples/raylib/hello_friendly.dd
-examples/raylib/hello_3d.dd
-examples/raylib/control_flow.dd    ← loop, defer, match
-examples/raylib/commands.dd        ← all friendly namespaces
-examples/raylib/audio_demo.dd      ← audio + assets load/play/unload
-examples/raylib/ui_demo.dd         ← raygui ui.button / ui.label
-examples/raylib/graphics_module.dd ← use graphics module (no include)
-examples/raylib/features.dd
-examples/coin-runner/game.dd       ← build from examples/coin-runner/
+examples/beginner/clicker.dd
+examples/coin-runner/game.dd
+examples/colors/alpha.dd
+examples/colors/css_demo.dd
 examples/game-loop/main.dd
-examples/colors/*.dd
+examples/hello/hello.dd
+examples/raylib/array_demo.dd
+examples/raylib/array_for_in.dd
+examples/raylib/array_remove_warning.dd   ← warning demo (check still exits 0)
+examples/raylib/attributes_demo.dd
+examples/raylib/audio_demo.dd
+examples/raylib/commands.dd
+examples/raylib/control_flow.dd
+examples/raylib/entity_demo.dd
+examples/raylib/exports_module.dd
+examples/raylib/features.dd
+examples/raylib/graphics_module.dd
+examples/raylib/hello_3d.dd
+examples/raylib/hello_friendly.dd
+examples/raylib/hello_raw.dd
+examples/raylib/hello_using.dd
+examples/raylib/match_destruct.dd
+examples/raylib/string_for_in.dd
+examples/raylib/ui_demo.dd
 ```
 
 ---
 
-## Your mission — prioritized language work
+## Your mission — prioritized work
 
-Work in this order. Do not skip P0. Do not start Layer 5 ECS before Layer 4 gaps are closed.
+### P0 — Ship v1.0 (do this first)
 
-### P0 — Ship blockers (infra, not language, but gates v1)
+| Task | Status | Acceptance |
+|------|--------|------------|
+| Windows bundled-Clang zip | ✅ | `build-dist.ps1` + cold PATH test |
+| Linux/macOS dist-verify | ✅ | CI `dist-verify` job |
+| CI on every push/PR | ✅ | `.github/workflows/ci.yml` |
+| GitHub release workflow | ✅ | `.github/workflows/release.yml` |
+| **Publish v1.0 Release** | 🔄 | Follow [PUBLISH.md](PUBLISH.md) — tag `v1.0.0`, attach three zips |
 
-| Task | Acceptance criteria | Files |
-|------|---------------------|-------|
-| Linux amd64 build | `datadream build hello_friendly.dd` + `coin-runner` | `internal/sdk/link.go`, CI |
-| macOS arm64 build | Same | CI macos job |
-| CI workflow | `go test`, `doctor`, `build hello_friendly` | `.github/workflows/ci.yml` |
-| Release zip | Fresh unzip → `doctor` ✓ → `run hello_friendly` | `scripts/build-dist.ps1`, `build-dist.sh`, `packdist --verify` |
+Do not start large new language features until P0 is signed off or explicitly deprioritized.
 
-### P1 — Finish Layer 4 (language — do this next for pure language work)
+### P1 — Friendly game layer
 
-These are the highest-value **language** tasks right now.
+**Complete.** See [ROADMAP.md](ROADMAP.md) P1 table.
 
-#### 1. Harden `audio.*` and `assets.*`
+### P2 — Language correctness (remaining)
 
-**Goal:** A working example that loads a sound and texture, plays sound, draws texture, cleans up with `defer`.
+| Task | Status | Files |
+|------|--------|-------|
+| Type checker | ✅ | `internal/typecheck/` |
+| Module exports | ✅ | `modules_export.go`, `exports_module.dd` |
+| `for x in array` / `DD_Array` | ✅ | `array.go`, `forin.go` |
+| `match` destructuring | ✅ | `match_destruct.dd` |
+| `defer` on return/break/continue | ✅ | `defer.go` |
+| **`@packed` full SoA codegen** | ✅ | `ecs_packed.go`, `attrs.go` |
+| **`@save` real serialize** | ✅ | `attrs.go` — int/float/bool/Vec/string |
+| Codegen error hints | ✅ | `codegen/diagnostic.go` → pipeline file/line/hint |
+| Parser/lexer hint coverage | 🟡 | Most paths done; edge cases remain |
 
-**Start here:**
-- `internal/codegen/stdlib.go` — `audio.play`, `assets.texture`
-- `internal/codegen/stdlib_runtime.go` — C helpers
-- `internal/codegen/analyze.go` — conditional emission flags
+### P3 — ECS
 
-**Deliverables:**
-- `examples/raylib/audio_demo.dd` (new)
-- Extend `stdlib_codegen_test.go`
-- Update [LANGUAGE.md](LANGUAGE.md) § audio/assets
+**Complete.** See [ROADMAP.md](ROADMAP.md) P3 table.
 
-**Acceptance:** `datadream build examples/raylib/audio_demo.dd` on Windows.
-
-#### 2. `ui.*` raygui wrapper
-
-**Goal:** `ui.button("Click", { position: vec2(10,10), width: 120, height: 32 })` → `GuiButton`.
-
-**Start here:**
-- `internal/codegen/expr.go` — namespace dispatch (copy `draw.*` pattern)
-- New `internal/codegen/ui.go`
-- Raygui is in raylib; link already works via `use raylib`
-
-**Deliverables:**
-- `examples/raylib/ui_demo.dd`
-- `ui_codegen_test.go`
-- [LANGUAGE.md](LANGUAGE.md) + [SYNTAX.md](SYNTAX.md) Layer 4 table
-
-**Acceptance:** Button renders in a window; `check --codegen` passes.
-
-#### 3. Type checker phase
-
-**Goal:** Catch obvious errors before codegen: unknown identifiers, wrong arg counts on builtins, bad struct fields.
-
-**Start here:**
-- `internal/compiler/phases.go` — `Phase` interface exists
-- `internal/compiler/pipeline.go` — insert phase between parse and codegen
-- New `internal/typecheck/` package
-
-**Scope for v1 (minimal):**
-- `let` assignments vs type hints
-- Builtin namespace calls (`draw.text`, `input.pressed`, …)
-- Struct literal field names against known structs
-- Do **not** build full inference yet — extend `inferTypeFromExpr` heuristics first
-
-**Deliverables:**
-- `internal/typecheck/typecheck_test.go`
-- `datadream check` runs typecheck by default (or `--types` flag)
-- Update [ROADMAP.md](ROADMAP.md)
-
-#### 4. Module resolution (`use graphics`) — ✅
-
-**Goal:** `use graphics;` loads `libs/graphics/wrapper.dd` without textual `include`.
-
-**Implemented:** `internal/pkg/resolver.go` (`ModuleSourcePath`), `internal/compiler/modules.go`, `libs/graphics/wrapper.dd`, parser allows `app` after `use`.
-
-**Example:** `examples/raylib/graphics_module.dd`
-
-### P2 — Layer 5 engine sugar (after P1) — ✅ core wired
+### P4 — Tooling & adoption
 
 | Task | Status | Notes |
 |------|--------|-------|
-| `entity` lifecycle in loop | ✅ | Registry, `update_all`, `draw_all`, `self->` |
-| `spawn X at vec2(...)` | ✅ | `Entity_spawn`, `let x = spawn Entity` |
-| `for x in Entity` | ✅ | Iterates entity registry |
-| `scene` blocks | ✅ | init/start/update/draw in app loop |
-| `on key "space"` | ✅ | Polls input, calls handler |
-| `system` blocks | ✅ | `system_*_run(dt)` each frame |
-| Entity `draw { }` | ✅ | Per-entity draw + `draw_all` |
+| `datadream new` | ✅ | `internal/cli/new.go` |
+| VS Code / TextMate grammar | ✅ | `syntaxes/`, `editor/datadream/` |
+| **LSP** (hover, go-to-def) | ❌ | After grammar; optional for v1.1 |
 
-**Examples:** `examples/coin-runner/game.dd` (ECS), `examples/raylib/entity_demo.dd`
+### P5 — Polish (later)
 
-### P3 — Polish (later)
-
-- `match` destructuring / type patterns (today: equality only → if-else chain)
-- `defer` on early `return` paths (verify LIFO on all exit paths)
 - Selective `use raylib { InitWindow, DrawText }`
-- LSP / VS Code extension
+- `match` type patterns (beyond struct destructuring)
+- Entity array demo with `.dead` + `.remove_dead()` in a real game loop
+- String iteration: codepoint/grapheme (v1 is byte-only by design)
+- Spatial partitioning for `collision.*` (see [LOOPS.md](LOOPS.md) v2)
+- Full debug/release build mode (frame-time logging, pool overflow at runtime)
 
----
+### Frame-budget loop protection (June 2026)
+
+Design: [LOOPS.md](LOOPS.md). Implementation status:
+
+| Item | Status | Location |
+|------|--------|----------|
+| Refuse infinite `loop` in per-frame blocks | ✅ | `typecheck/loops.go` |
+| Runtime range bound warning | ✅ | `typecheck/loops.go` |
+| Allocation / `.push()` in loop warnings | ✅ | `typecheck/loops.go` |
+| Nested entity loop O(n²) warning | ✅ | `typecheck/loops.go` |
+| Draw-block mutation warning | ✅ | `typecheck/loops.go` |
+| Entity packed pool codegen (default 1024) | ✅ | `codegen/ecs.go` |
+| `@max(n)` entity pool cap | ✅ | `codegen/ecs.go` |
+| Debug `while` iteration guard (`#ifndef NDEBUG`) | ✅ | `codegen/stmts.go`, `lifecycle.go` |
+| Spatial grid collision | ❌ v2 | — |
+| `@max_iterations(n)` on `while` | ❌ v2 | — |
+
 
 ## How to add a language feature (recipe)
 
@@ -193,86 +252,102 @@ Example: add `ui.slider(...)`.
 ```
 lexer (usually nothing)
   → parser/expr.go (namespace root)
+  → ast/*.go (if new node or fields)
+  → typecheck/forin.go or builtins.go (if disambiguation / namespace)
   → codegen/ui.go (emit raylib GuiSlider)
-  → analyze.go (flag if conditional emission needed)
+  → analyze.go (flag conditional runtime emission)
   → example in examples/raylib/ui_demo.dd
   → test in internal/codegen/ui_codegen_test.go
   → docs: LANGUAGE.md, SYNTAX.md, ROADMAP.md, this file
 ```
 
+**For `for x in …` iterable types:** keep parser dumb (`ForInStmt` only); add `IterKind` case in typecheck + codegen switch — do not special-case in parser.
+
 **Rules:**
-- Every feature needs an example that `check --codegen` passes
-- Match existing style in the file you edit
-- Go only in tooling — no Python
-- Do not break [VISION.md](VISION.md) anti-goals (no Python syntax, no hidden raylib, no VM)
+- Every feature needs an example passing `datadream check --codegen`
+- Match existing style; Go only in tooling
+- Do not break [VISION.md](VISION.md) anti-goals
+- Update this file + ROADMAP when status changes
+- **Do not commit** unless explicitly asked
 
 ---
 
 ## Key files map
 
 ```
-internal/lexer/lexer.go          Tokens, IsBindingName, 0..=, ||/&&
-internal/parser/
-  stmt.go                        loop, defer, match, break, continue
-  decls.go                       parseBindingIdent, float[] types
-  expr.go                        draw.*, input.* namespace calls
-  interop.go                     use, extern c
-internal/ast/ast.go              LoopStmt, DeferStmt, TypeExpr.Array
+cmd/datadream/main.go              CLI entry
+internal/cli/                      run, build, check, bind, doctor, sdk, new
+internal/cli/diagnostics.go        Errors + warnings formatting
+internal/lexer/lexer.go            Tokens, IsBindingName, 0..=, ||/&&
+internal/parser/                   loop, defer, match, entity methods, list T sugar
+internal/ast/ast.go                ForInStmt, IterKind, AST nodes
+internal/typecheck/
+  typecheck.go                     Main checker, scopes, warnings, loop depth
+  loops.go                         Per-frame loop static analysis + warnings
+  forin.go                         resolveForIn, IterKind, remove-during-iter warning
+  hints.go                         Suggested fixes
+internal/errors/errors.go          Diagnostic reporter (error/warning/hint)
 internal/codegen/
-  generator.go                   genNode dispatch
-  analyze.go                     what runtimes to emit
-  defer.go                       defer stack, genStmts
-  friendly.go                    screen, keys, mouse
-  stdlib.go                      time, math, audio, assets
-  draw.go                        draw.* → raylib
-  ui.go                         ui.* → raygui
-  game_runtime.go                sprite, input, collision
-  ecs.go                         entity registry, spawn, for-in, events
-  app_emit.go                    main loop, lifecycle_*
-  stmts.go                       if/for/while/loop/match
-internal/compiler/pipeline.go    Check, Compile, Phase hook
-libs/raylib/raw.dd               Generated — run bindgen to refresh
-examples/raylib/commands.dd      Full friendly API reference
-docs/SYNTAX.md                   Keywords by layer
-docs/LANGUAGE.md                 User-facing API reference
+  array.go                         DD_Array runtime, for-in array/string codegen
+  arena.go                         Frame + level arenas
+  defer.go                         defer LIFO on all exit paths
+  ecs.go                           Entity pool, spawn, for-in entity, ECS hooks
+  lifecycle.go                     Per-frame lifecycle depth for debug while guards
+  decls.go                         struct/entity + methods
+  expr.go                          Method calls, namespaces, array methods
+  stmts.go                         genForIn → genForInByKind
+  analyze.go                       needsArrayRuntime, usage analysis
+internal/compiler/
+  pipeline.go                      Check, Compile; warnings don't block
+  typecheck_phase.go               Maps typecheck errors/warnings
+  modules_export.go                export fn / export let filter
+tools/packdist/                    Release zip + --verify
+scripts/build-dist.ps1             Windows dist (bundled Clang)
+libs/raylib/raw.dd                 Generated — run check-bindgen to refresh
 ```
 
 ---
 
 ## Known gotchas
 
-1. **`check` ≠ `build`** — default `check` is parse + typecheck; use `check --codegen` or `build` for C verification.
-2. **Global `let` with calls** — deferred to `datadream_init_globals()`; never emit function calls at C file scope.
-3. **`use raylib` scope** — C names land in file scope; `isExternAPICall` in `interop.go` must distinguish user fns from extern.
-4. **`internal/pkg` must NOT import `internal/sdk`** — import cycle.
-5. **coin-runner cwd** — build from `examples/coin-runner/` so `assets/*.png` resolve.
-6. **Windows linking** — use bundled llvm-mingw (`sdk install clang`), not MSVC LLVM alone.
-7. **Parser on `raw.dd`** — completes in under 1s; keyword binding names via `IsBindingName`.
-8. **Object field `c:`** — `c` is `TOKEN_C`; use `p1`/`p2`/`p3` for triangle points (parser quirk).
-9. **`let` inside `update`/`draw`** — must not be treated as global (`topLevel = false` in lifecycle blocks).
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | `check` vs `build` | `check` = lex + parse + typecheck; `--codegen` adds C without link |
+| 2 | Global `let` with calls | Deferred to `datadream_init_globals()` — no calls at C file scope |
+| 3 | `.gitignore` | Use `/datadream` not `datadream` or `cmd/datadream/` is ignored |
+| 4 | `internal/pkg` → `internal/sdk` | Import cycle — forbidden |
+| 5 | coin-runner cwd | Build from `examples/coin-runner/` for asset paths |
+| 6 | Windows linking | Release zips bundle llvm-mingw; MSVC-only LLVM fails raylib link |
+| 7 | Parser on `raw.dd` | Completes in <1s; keyword binding names via `IsBindingName` |
+| 8 | Entity method signatures | Empty param list emits `(self)` not `(self, void)` |
+| 9 | `let` in lifecycle blocks | Not global (`topLevel = false` in update/draw) |
+| 10 | **`c` is a keyword** | C interop — do not use `for c in "hello"`; use `ch` or `byte` |
+| 11 | Array remove during loop | Warning only — use `.dead` + `.remove_dead()` after loop |
+| 12 | Struct elements in `for x in arr` | Binding is **pointer** — mutations apply in place |
 
 ---
 
-## Definition of done — next milestone
+## Milestones
 
-Call **v0.2** done when:
+### v0.2 — ✅ complete
 
-- [x] `audio_demo.dd` builds on Windows
-- [x] `ui_demo.dd` builds on Windows
-- [x] Type checker catches at least: unknown builtin, wrong `draw.text` options, bad struct field
-- [x] `go test ./internal/...` green
-- [x] All examples pass `check --codegen` (17 `.dd` files; CI verifies on Linux + macOS)
-- [x] Linux OR macOS build verified (CI: `.github/workflows/ci.yml`)
+Audio/ui demos, type checker, all examples, CI on Linux + macOS.
 
-**v0.2 is complete.** Next gate is **v1** (fresh zip + coin-runner on all three OSes, docs match reality).
+### v1.0 — gate (one step left)
 
-Call **v1** done when:
+- [x] Fresh zip → `doctor` ✓ → `run hello_friendly` (Win/Linux/macOS)
+- [x] `coin-runner` builds with assets
+- [x] `hello_raw` + `hello_3d` build
+- [x] All examples pass `check --codegen`; CI builds
+- [x] bindgen-check keeps `raw.dd` in sync
+- [x] Docs match reality
+- [ ] **GitHub v1.0 Release published** — [PUBLISH.md](PUBLISH.md)
 
-- Fresh zip → `doctor` ✓ → `build coin-runner` on **Windows, Linux, macOS** (`packdist --verify` or `scripts/build-dist.*`)
-- CI **dist-verify** jobs on **Windows, Linux, and macOS** re-pack and verify every push/PR
-- CI **bindgen-check** keeps `libs/raylib/raw.dd` in sync with `raylib.h`
-- All examples pass `check --codegen` and `build` (CI: `build-all-examples.sh` on Linux + macOS)
-- Docs match reality
+### v1.1 — suggested next
+
+- LSP basics
+- `@packed` / `@save` production-ready
+- Codegen diagnostics through hint pipeline
 
 ---
 
@@ -280,17 +355,17 @@ Call **v1** done when:
 
 ```bash
 go build -o datadream ./cmd/datadream
-go test ./internal/parser/... ./internal/codegen/... ./internal/colors/...
+go test ./internal/...
 
+datadream check examples/raylib/<example>.dd
 datadream check --codegen examples/raylib/<example>.dd
 datadream build examples/raylib/<example>.dd -o /tmp/test
 
 cd examples/coin-runner && ../../datadream build game.dd -o coin-runner
 
 datadream bind sdk/raylib/6.0/include/raylib.h --raw --out libs/raylib/raw.dd
-
-./scripts/build-all-examples.sh   # all 17 examples
 ./scripts/check-bindgen.sh
+./scripts/build-all-examples.sh
 ```
 
 ---
@@ -303,7 +378,7 @@ datadream bind sdk/raylib/6.0/include/raylib.h --raw --out libs/raylib/raw.dd
 | File extension | `.dd` |
 | Former name | Koda — do not use |
 | End users | `datadream` binary + `sdk/` — never require Go |
-| Design identity | C/raylib structure, modern syntax, beginner-friendly |
+| Repo | https://github.com/CharmingBlaze/datadream |
 
 **North star:** A native game language where beginners write `app`/`draw`/`input` and advanced users drop to raw `use raylib` for 3D — same compiler, same binary.
 
@@ -313,9 +388,12 @@ datadream bind sdk/raylib/6.0/include/raylib.h --raw --out libs/raylib/raw.dd
 
 | Doc | When to read |
 |-----|--------------|
+| [NEXT_SESSION_PROMPT.md](NEXT_SESSION_PROMPT.md) | **Paste into a new agent chat** |
 | [ROADMAP.md](ROADMAP.md) | Task status table |
+| [PUBLISH.md](PUBLISH.md) | Release v1.0 step-by-step |
 | [DESIGN.md](DESIGN.md) | Full design map, v1 target program |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline and package layout |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Feature addition checklist |
 | [INTEROP.md](INTEROP.md) | raylib, bindgen, `raw.dd` quirks |
 | [SETUP.md](SETUP.md) | SDK install, troubleshooting |
+| [DISTRIBUTION.md](DISTRIBUTION.md) | Release zips, packdist |

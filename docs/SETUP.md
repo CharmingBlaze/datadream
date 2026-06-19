@@ -32,6 +32,8 @@ Verify:
 # DataDream compiler version 0.1.0
 ```
 
+Entry point: `cmd/datadream/main.go` → `internal/cli.Run`. The `.gitignore` pattern must be `/datadream` (root only), not bare `datadream`, or this directory is ignored.
+
 ---
 
 ## SDK setup
@@ -112,7 +114,7 @@ You are using the **wrong Clang**. Run `datadream sdk install clang` (llvm-mingw
 # 2. Rebuild compiler
 go build -o datadream ./cmd/datadream
 
-# 3. Fast syntax check
+# 3. Fast check (parse + typecheck)
 datadream check examples/coin-runner/game.dd
 datadream check examples/coin-runner/game.dd --codegen
 
@@ -123,9 +125,7 @@ datadream build examples/raylib/hello_friendly.dd -o hello
 datadream run examples/raylib/hello_friendly.dd
 
 # 6. Unit tests
-go test ./internal/colors/...
-go test ./internal/codegen/...
-go test ./internal/parser/...    # raw.dd test is slow
+go test ./internal/...
 ```
 
 ---
@@ -134,7 +134,10 @@ go test ./internal/parser/...    # raw.dd test is slow
 
 | Task | Command / file |
 |------|----------------|
+| CLI entry | `cmd/datadream/main.go` |
 | Add CLI command | `internal/cli/cli.go` + new `cmd_*.go` |
+| Add typecheck rule | `internal/typecheck/typecheck.go`, `builtins.go`, `hints.go` |
+| Formatted errors | `internal/errors/`, `internal/cli/diagnostics.go` |
 | Add keyword | `internal/lexer/lexer.go` → parser → ast → codegen |
 | Add friendly builtin | `internal/codegen/expr.go` or `draw.go` |
 | Add C runtime helper | `internal/codegen/game_runtime.go` or `runtime.go` |

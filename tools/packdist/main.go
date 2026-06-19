@@ -25,6 +25,7 @@ func main() {
 	out := flag.String("out", defaultOut(), "output directory or .zip path")
 	verify := flag.Bool("verify", false, "run doctor + build hello_friendly + hello_raw + coin-runner on packed tree")
 	verifyOnly := flag.String("verify-only", "", "verify an existing unpacked distribution directory")
+	skipStudio := flag.Bool("skip-studio", false, "omit datadream-studio IDE from the distribution")
 	flag.Parse()
 
 	if *verifyOnly != "" {
@@ -41,14 +42,14 @@ func main() {
 	}
 
 	if strings.HasSuffix(strings.ToLower(*out), ".zip") {
-		if err := packZip(root, *out, *verify); err != nil {
+		if err := packZip(root, *out, *verify, *skipStudio); err != nil {
 			die(err)
 		}
 		fmt.Printf("✓ Distribution zip: %s\n", *out)
 		return
 	}
 
-	if err := packDir(root, *out); err != nil {
+	if err := packDir(root, *out, *skipStudio); err != nil {
 		die(err)
 	}
 	fmt.Printf("✓ Distribution folder: %s\n", *out)
@@ -64,7 +65,7 @@ func defaultOut() string {
 	return filepath.Join("dist", fmt.Sprintf("datadream-%s-%s.zip", runtime.GOOS, runtime.GOARCH))
 }
 
-func packDir(root, dest string) error {
+func packDir(root, dest string, skipStudio bool) error {
 	if err := os.MkdirAll(dest, 0755); err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func packDir(root, dest string) error {
 	copyTree(filepath.Join(root, "examples"), filepath.Join(dest, "examples"))
 	copyTree(filepath.Join(root, "libs"), filepath.Join(dest, "libs"))
 
-	for _, doc := range []string{"README.md", filepath.Join("docs", "SETUP.md"), filepath.Join("docs", "DISTRIBUTION.md")} {
+	for _, doc := range []string{"README.md", filepath.Join("docs", "GETTING_STARTED.txt"), filepath.Join("docs", "SETUP.md"), filepath.Join("docs", "DISTRIBUTION.md"), filepath.Join("docs", "STUDIO.md")} {
 		src := filepath.Join(root, doc)
 		dst := filepath.Join(dest, doc)
 		copyFile(src, dst)
@@ -92,15 +93,18 @@ func packDir(root, dest string) error {
 	if err := copyFileStrict(srcBin, dstBin); err != nil {
 		return err
 	}
-	return nil
+	if err := copyStudio(root, binDir, skipStudio); err != nil {
+		return err
+	}
+	return writeLaunchers(dest, skipStudio)
 }
 
-func packZip(root, zipPath string, verify bool) error {
+func packZip(root, zipPath string, verify, skipStudio bool) error {
 	tmp := strings.TrimSuffix(zipPath, ".zip") + "-tmp"
 	if err := os.RemoveAll(tmp); err != nil {
 		return err
 	}
-	if err := packDir(root, tmp); err != nil {
+	if err := packDir(root, tmp, skipStudio); err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
@@ -144,6 +148,112 @@ func packZip(root, zipPath string, verify bool) error {
 		_, err = io.Copy(w, r)
 		return err
 	})
+}
+
+func copyStudio(root, binDir string, skipStudio bool) error {
+	if skipStudio {
+		fmt.Println("Skipping datadream-studio (packdist --skip-studio)")
+		return nil
+	}
+	src, isApp, err := findBuiltStudio(root)
+	if err != nil {
+		return fmt.Errorf("datadream-studio not built — run scripts/build-studio before packing: %w", err)
+	}
+	if isApp {
+		dst := filepath.Join(binDir, filepath.Base(src))
+		fmt.Printf("Including IDE: %s\n", filepath.Base(src))
+		return copyTree(src, dst)
+	}
+	dst := filepath.Join(binDir, filepath.Base(src))
+	fmt.Printf("Including IDE: %s\n", filepath.Base(dst))
+	if err := copyFileStrict(src, dst); err != nil {
+		return err
+	}
+	if runtime.GOOS != "windows" {
+		return os.Chmod(dst, 0755)
+	}
+	return nil
+}
+
+func findBuiltStudio(root string) (string, bool, error) {
+	exeName := "datadream-studio" + exeSuffix()
+	candidates := []struct {
+		path string
+		app  bool
+	}{
+		{filepath.Join(root, "cmd", "studio", "build", "bin", exeName), false},
+		{filepath.Join(root, "cmd", "studio", "build", "bin", "datadream-studio.app"), true},
+		{filepath.Join(root, exeName), false},
+		{filepath.Join(root, "bin", exeName), false},
+		{filepath.Join(root, "bin", "datadream-studio.app"), true},
+	}
+	for _, c := range candidates {
+		if c.app {
+			if info, err := os.Stat(c.path); err == nil && info.IsDir() {
+				return c.path, true, nil
+			}
+			continue
+		}
+		if fileExists(c.path) {
+			return c.path, false, nil
+		}
+	}
+	return "", false, fmt.Errorf("no build output under cmd/studio/build/bin")
+}
+
+func writeLaunchers(dest string, skipStudio bool) error {
+	if skipStudio {
+		return nil
+	}
+
+	srcGuide := filepath.Join(dest, "docs", "GETTING_STARTED.txt")
+	if fileExists(srcGuide) {
+		copyFileStrict(srcGuide, filepath.Join(dest, "GETTING_STARTED.txt"))
+	}
+
+	binDir := filepath.Join(dest, "bin")
+
+	switch runtime.GOOS {
+	case "windows":
+		bat := "@echo off\r\n" +
+			"set \"DATADREAM_ROOT=%~dp0\"\r\n" +
+			"set \"DATADREAM_ROOT=%DATADREAM_ROOT:~0,-1%\"\r\n" +
+			"start \"\" \"%~dp0bin\\datadream-studio.exe\"\r\n"
+		if err := os.WriteFile(filepath.Join(dest, "Start DataDream Studio.bat"), []byte(bat), 0644); err != nil {
+			return err
+		}
+		src := filepath.Join(binDir, "datadream-studio.exe")
+		if fileExists(src) {
+			return copyFileStrict(src, filepath.Join(dest, "DataDream Studio.exe"))
+		}
+	case "darwin":
+		sh := "#!/bin/sh\n" +
+			"DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\n" +
+			"export DATADREAM_ROOT=\"$DIR\"\n" +
+			"exec open -a \"$DIR/bin/datadream-studio.app\"\n"
+		shPath := filepath.Join(dest, "start-studio.sh")
+		if err := os.WriteFile(shPath, []byte(sh), 0755); err != nil {
+			return err
+		}
+		appSrc := filepath.Join(binDir, "datadream-studio.app")
+		if info, err := os.Stat(appSrc); err == nil && info.IsDir() {
+			return copyTree(appSrc, filepath.Join(dest, "DataDream Studio.app"))
+		}
+	default:
+		sh := "#!/bin/sh\n" +
+			"DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\n" +
+			"export DATADREAM_ROOT=\"$DIR\"\n" +
+			"exec \"$DIR/bin/datadream-studio\" \"$@\"\n"
+		shPath := filepath.Join(dest, "start-studio.sh")
+		if err := os.WriteFile(shPath, []byte(sh), 0755); err != nil {
+			return err
+		}
+		src := filepath.Join(binDir, "datadream-studio")
+		if fileExists(src) {
+			return copyFileStrict(src, filepath.Join(dest, "datadream-studio"))
+		}
+	}
+	return nil
 }
 
 func verifyDist(dest string) error {
@@ -297,7 +407,15 @@ func copyFileStrict(src, dst string) error {
 	}
 	defer out.Close()
 	_, err = io.Copy(out, in)
-	return err
+	if err != nil {
+		return err
+	}
+	if runtime.GOOS != "windows" {
+		if info, statErr := os.Stat(src); statErr == nil && info.Mode()&0111 != 0 {
+			return os.Chmod(dst, info.Mode().Perm())
+		}
+	}
+	return nil
 }
 
 func fileExists(path string) bool {

@@ -1,17 +1,18 @@
 package ast
 
-// UseStmt imports a module: use raylib; use raylib as rl;
+// UseStmt imports a module: use raylib; use raylib as rl; use raylib { InitWindow, DrawText };
 type UseStmt struct {
 	Path     string
 	Alias    string // empty = use Path as namespace Path
+	Symbols  []string // non-empty = selective import (only these names in scope)
 	position Position
 }
 
 func (u *UseStmt) nodeType() string { return "UseStmt" }
 func (u *UseStmt) Pos() Position    { return u.position }
 
-func NewUseStmt(path, alias string, pos Position) *UseStmt {
-	return &UseStmt{Path: path, Alias: alias, position: pos}
+func NewUseStmt(path, alias string, symbols []string, pos Position) *UseStmt {
+	return &UseStmt{Path: path, Alias: alias, Symbols: symbols, position: pos}
 }
 
 // UsingStmt brings a module's names into the current file scope.

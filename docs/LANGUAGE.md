@@ -85,6 +85,81 @@ extern c { }             // inline C bindings block
 | `use graphics;` | Merges `libs/graphics/wrapper.dd`; enables friendly `draw.*` / `input.*` with raylib link |
 | `using raylib;` | Brings names into file scope |
 
+### Module exports
+
+Module files (`libs/<name>/wrapper.dd`) can mark their public API with `export`:
+
+```dd
+use raylib;
+
+let _cache = 0;                    // private — not visible to importers
+
+export let panel_color = colors.sky;
+export fn panel_title() -> string { return "Hello"; }
+```
+
+When a module uses `export`, only exported declarations (plus `use` / `extern` dependencies) are merged into the importer. Modules without any `export` keyword behave as before (entire file is merged).
+
+`include "file.dd";` remains textual inclusion and ignores exports.
+
+---
+
+## Memory
+
+DataDream programs do not call `malloc` / `free` directly. The compiler emits three logical allocators:
+
+| Arena | Lifetime | Used for |
+|-------|----------|----------|
+| **Frame** | Reset each frame | Temporary strings and scratch data in `draw { }` / per-frame work |
+| **Level** | Freed on scene change | Entity spawn, level geometry — **`dd_level_arena_reset()` on scene init** |
+| **Persistent** | Session lifetime | Loaded textures, sounds, global asset handles |
+
+Today, friendly app programs emit a **frame arena** (`dd_frame_arena_reset()` runs at the start of each frame) and a **level arena** (`dd_level_arena_reset()` runs at each `scene` init). `assets.texture` / `assets.sound` use persistent storage.
+
+Strings in interpolation (`"Score: {score}"`) compile to C format buffers; the frame arena will back short-lived formatted strings in a future release.
+
+### Arrays (`Array<T>`)
+
+Dynamic arrays compile to a growable `DD_Array` fat pointer (`data`, `len`, `cap`, `elem_size`) in the C runtime.
+
+```dd
+let nums: Array<int>;           // empty — calls dd_array_new
+let enemies: list Enemy;        // sugar for Array<Enemy>
+let points: Array<Point> = [];  // same, with explicit empty literal
+
+nums.push(10);
+nums.push(20);
+
+for n in nums {
+    // n is int (value copy for scalars)
+}
+
+for p in points {
+    // p is Point* — pointer to element; mutations apply in place
+    p.x += 1.0;
+}
+
+let total = nums.len();         // or nums.len
+nums.pop();
+nums.remove(3);                 // remove by index
+points.remove_dead();           // compact: removes elements where .dead == true
+```
+
+**Four `for x in …` forms** (disambiguated in the type checker, not the parser):
+
+| Syntax | Kind | Loop variable |
+|--------|------|---------------|
+| `for i in 0..10` | range (`ForRangeStmt`) | `int` |
+| `for e in Enemy` | entity registry | `Enemy_Entity*` |
+| `for x in arr` / `[1, 2, 3]` | `Array<T>` | `T` or `T*` (pointer for struct/entity elements) |
+| `for ch in "hello"` / `msg` | string | `byte` (UTF-8 **byte**, not grapheme) |
+
+Do **not** call `.remove()` on an array while iterating it — the compiler emits a **warning**. Mark elements (e.g. `.dead = true`) and call `.remove_dead()` after the loop instead.
+
+Inline literals (`[10, 20, 30]`) wrap a static C array with `dd_array_wrap` for iteration.
+
+See `examples/raylib/array_demo.dd`, `array_for_in.dd`, and `string_for_in.dd`.
+
 ---
 
 ## Types (codegen mapping)
@@ -109,6 +184,7 @@ Type inference works for literals and some builtins. **`datadream check` runs a 
 ```dd
 let x = 10;
 let name: string = "Ada";
+let enemies: Array<Enemy>;   // type-only — empty DD_Array
 let pos = vec2(100, 200);
 
 if x > 0 {
@@ -461,13 +537,13 @@ CloseWindow();
 | `fn` / `async fn` | ✅ | ✅ |
 | `struct` | ✅ | ✅ |
 | `enum` | ✅ | ✅ |
-| `entity` | ✅ | 🟡 Partial |
-| `scene` | ✅ | 🟡 Partial |
-| `system` | ✅ | 🟡 Partial |
-| `spawn` / `destroy` | ✅ | 🟡 Partial |
-| `on event` | ✅ | 🟡 Stub |
+| `entity` | ✅ | ✅ registry, spawn, update/draw, **methods** |
+| `scene` | ✅ | ✅ init/start/update/draw in app loop |
+| `system` | ✅ | ✅ per-frame `system_*_run(dt)` |
+| `spawn` / `destroy` | ✅ | ✅ |
+| `on event` | ✅ | ✅ key/mouse handlers |
 | `try` | ✅ | 🟡 Stub |
-| `ui { }` | ✅ | ❌ Not implemented |
+| `ui { }` declarative block | ✅ parse | ❌ use `ui.button(...)` namespace instead |
 
 ---
 
@@ -514,7 +590,7 @@ datadream bind path/to/header.h --raw --out libs/mylib/raw.dd
 ## CLI
 
 ```bash
-datadream check file.dd [--codegen]
+datadream check file.dd [--codegen]   # parse + typecheck; --codegen adds C emission
 datadream build file.dd [-o name] [--release]
 datadream run file.dd
 datadream bind header.h [--raw] [--out file.dd]
@@ -522,6 +598,31 @@ datadream doctor
 datadream sdk install clang|raylib|headers
 datadream version
 ```
+
+`check` and failed `build`/`run` print **friendly diagnostics**: source line, caret, and hints for common type errors (unknown variables, bad `draw.*` methods, struct fields).
+
+## Struct and entity methods
+
+```dd
+struct Counter {
+    value: int;
+    fn bump() {
+        self.value += 1;
+    }
+}
+
+entity Bullet {
+    speed: float;
+    fn boost() {
+        self.speed += 50;
+    }
+    update {
+        self.boost();
+    }
+}
+```
+
+Methods compile to C free functions: `Counter_bump(&counter)`, `Bullet_boost(self)`.
 
 ---
 

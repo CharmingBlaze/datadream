@@ -1,0 +1,27 @@
+// for x in array — DD_Array iteration (literals + let-bound arrays)
+use raylib;
+
+fn main() {
+    InitWindow(400, 300, "for x in array");
+    defer CloseWindow();
+
+    let nums = [10, 20, 30, 40];
+
+    loop {
+        if WindowShouldClose() { break; }
+
+        let total = 0;
+        for n in nums {
+            total += n;
+        }
+
+        for x in [1, 2, 3] {
+            total += x;
+        }
+
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText(TextFormat("total=%d", total), 10, 10, 20, BLACK);
+        EndDrawing();
+    }
+}

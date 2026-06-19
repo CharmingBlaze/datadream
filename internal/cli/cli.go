@@ -28,6 +28,12 @@ func Run(args []string) int {
 		return cmdDoctor(args[1:])
 	case "sdk":
 		return cmdSDK(args[1:])
+	case "new":
+		return cmdNew(args[1:])
+	case "ide":
+		return cmdIDE(args[1:])
+	case "studio":
+		return cmdStudio(args[1:])
 	case "version":
 		fmt.Printf("%s compiler version %s\n", version.Name, version.Version)
 		return 0

@@ -41,12 +41,14 @@ func cmdRun(args []string) int {
 func buildSource(sourceFile, outBin string, release bool, extraArgs []string) error {
 	fmt.Printf("⚙ Compiling: %s\n", sourceFile)
 
-	result, err := compiler.CompileFile(sourceFile)
-	if err != nil {
-		return err
+	source, readErr := compiler.ReadSource(sourceFile)
+	if readErr != nil {
+		return readErr
 	}
+
+	result := compiler.Compile(compiler.Options{SourceFile: sourceFile, Source: source})
 	if result.HasErrors() {
-		printFrontendErrors(result)
+		printFrontendErrors(sourceFile, source, result)
 		return fmt.Errorf("compile failed")
 	}
 
@@ -54,7 +56,7 @@ func buildSource(sourceFile, outBin string, release bool, extraArgs []string) er
 	flags = append(flags, result.LinkFlags...)
 
 	fmt.Printf("⚙ C compilation: %s → %s\n", compilerLabel(extraArgs), outBin)
-	err = driver.DefaultBackend().Build(driver.Options{
+	err := driver.DefaultBackend().Build(driver.Options{
 		CSource:   result.CSource,
 		Output:    outBin,
 		Release:   release,
@@ -77,12 +79,6 @@ func compilerLabel(extraArgs []string) string {
 	return driver.DefaultBackend().Name()
 }
 
-func printFrontendErrors(result *compiler.Result) {
-	for _, d := range result.Errors {
-		if d.File != "" {
-			fmt.Fprintf(os.Stderr, "%s:%d:%d: %s\n", d.File, d.Line, d.Col, d.Message)
-		} else {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", d.Stage, d.Message)
-		}
-	}
+func printFrontendErrors(sourceFile, source string, result *compiler.Result) {
+	printDiagnostics(sourceFile, source, result.Errors)
 }

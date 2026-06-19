@@ -8,7 +8,8 @@
 
 param(
     [switch]$SkipClang,
-    [switch]$SkipVerify
+    [switch]$SkipVerify,
+    [switch]$SkipStudio
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,7 +19,11 @@ Set-Location $Root
 $env:CGO_ENABLED = "0"
 
 Write-Host "Building datadream compiler..."
-go build -o datadream.exe ./cmd/datadream
+go build -mod=mod -o datadream.exe ./cmd/datadream
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Write-Host "Fetching offline Monaco editor..."
+.\scripts\fetch-monaco.ps1
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Installing raylib SDK..."
@@ -53,6 +58,14 @@ Push-Location examples/coin-runner
 if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
 Pop-Location
 
+if (-not $SkipStudio) {
+    Write-Host "Building DataDream Studio (Wails)..."
+    .\scripts\build-studio.ps1
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} else {
+    Write-Host "Skipping Studio build (-SkipStudio)"
+}
+
 Write-Host "Building packdist tool..."
 go build -o packdist.exe ./tools/packdist
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -65,10 +78,11 @@ New-Item -ItemType Directory -Force -Path (Split-Path $Out) | Out-Null
 Write-Host "Packing distribution..."
 $packArgs = @("--out", $Out)
 if (-not $SkipVerify) { $packArgs += "--verify" }
+if ($SkipStudio) { $packArgs += "--skip-studio" }
 & .\packdist.exe @packArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Done: $Out"
 if ($SkipClang) {
-    Write-Host "Note: zip omits bundled Clang — users must run: datadream sdk install clang"
+    Write-Host "Note: zip omits bundled Clang - users must run: datadream sdk install clang"
 }
