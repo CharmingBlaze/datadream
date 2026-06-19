@@ -155,50 +155,87 @@ func copyStudio(root, binDir string, skipStudio bool) error {
 		fmt.Println("Skipping datadream-studio (packdist --skip-studio)")
 		return nil
 	}
-	src, isApp, err := findBuiltStudio(root)
+	src, kind, err := findBuiltStudio(root)
 	if err != nil {
 		return fmt.Errorf("datadream-studio not built — run scripts/build-studio before packing: %w", err)
 	}
-	if isApp {
+	switch kind {
+	case "appbundle":
 		dst := filepath.Join(binDir, filepath.Base(src))
 		fmt.Printf("Including IDE: %s\n", filepath.Base(src))
 		return copyTree(src, dst)
-	}
-	dst := filepath.Join(binDir, filepath.Base(src))
-	fmt.Printf("Including IDE: %s\n", filepath.Base(dst))
-	if err := copyFileStrict(src, dst); err != nil {
-		return err
-	}
-	if runtime.GOOS != "windows" {
+	case "appimage":
+		dst := filepath.Join(binDir, filepath.Base(src))
+		fmt.Printf("Including IDE: %s\n", filepath.Base(dst))
+		if err := copyFileStrict(src, dst); err != nil {
+			return err
+		}
 		return os.Chmod(dst, 0755)
+	default:
+		dst := filepath.Join(binDir, filepath.Base(src))
+		fmt.Printf("Including IDE: %s\n", filepath.Base(dst))
+		if err := copyFileStrict(src, dst); err != nil {
+			return err
+		}
+		if runtime.GOOS != "windows" {
+			return os.Chmod(dst, 0755)
+		}
+		return nil
 	}
-	return nil
 }
 
-func findBuiltStudio(root string) (string, bool, error) {
+// findBuiltStudio returns path and kind: "appbundle", "appimage", or "binary".
+func findBuiltStudio(root string) (string, string, error) {
 	exeName := "datadream-studio" + exeSuffix()
 	candidates := []struct {
 		path string
-		app  bool
-	}{
-		{filepath.Join(root, "cmd", "studio", "build", "bin", exeName), false},
-		{filepath.Join(root, "cmd", "studio", "build", "bin", "datadream-studio.app"), true},
-		{filepath.Join(root, exeName), false},
-		{filepath.Join(root, "bin", exeName), false},
-		{filepath.Join(root, "bin", "datadream-studio.app"), true},
+		kind string
+	}{}
+	if runtime.GOOS == "linux" {
+		for _, arch := range []string{"x86_64", "aarch64", "amd64", "arm64"} {
+			candidates = append(candidates, struct {
+				path string
+				kind string
+			}{filepath.Join(root, "cmd", "studio", "build", "bin", "datadream-studio-"+arch+".AppImage"), "appimage"})
+		}
 	}
+	candidates = append(candidates,
+		struct {
+			path string
+			kind string
+		}{filepath.Join(root, "cmd", "studio", "build", "bin", exeName), "binary"},
+		struct {
+			path string
+			kind string
+		}{filepath.Join(root, "cmd", "studio", "build", "bin", "datadream-studio.app"), "appbundle"},
+		struct {
+			path string
+			kind string
+		}{filepath.Join(root, exeName), "binary"},
+		struct {
+			path string
+			kind string
+		}{filepath.Join(root, "bin", exeName), "binary"},
+		struct {
+			path string
+			kind string
+		}{filepath.Join(root, "bin", "datadream-studio.app"), "appbundle"},
+	)
 	for _, c := range candidates {
-		if c.app {
+		if c.kind == "appbundle" {
 			if info, err := os.Stat(c.path); err == nil && info.IsDir() {
-				return c.path, true, nil
+				return c.path, c.kind, nil
 			}
 			continue
 		}
 		if fileExists(c.path) {
-			return c.path, false, nil
+			if strings.HasSuffix(strings.ToLower(c.path), ".appimage") {
+				return c.path, "appimage", nil
+			}
+			return c.path, c.kind, nil
 		}
 	}
-	return "", false, fmt.Errorf("no build output under cmd/studio/build/bin")
+	return "", "", fmt.Errorf("no build output under cmd/studio/build/bin")
 }
 
 func writeLaunchers(dest string, skipStudio bool) error {
@@ -240,13 +277,25 @@ func writeLaunchers(dest string, skipStudio bool) error {
 			return copyTree(appSrc, filepath.Join(dest, "DataDream Studio.app"))
 		}
 	default:
+		appImage := findPackedAppImage(binDir)
 		sh := "#!/bin/sh\n" +
 			"DIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\n" +
-			"export DATADREAM_ROOT=\"$DIR\"\n" +
-			"exec \"$DIR/bin/datadream-studio\" \"$@\"\n"
+			"export DATADREAM_ROOT=\"$DIR\"\n"
+		if appImage != "" {
+			sh += "exec \"$DIR/bin/" + filepath.Base(appImage) + "\" \"$@\"\n"
+		} else {
+			sh += "exec \"$DIR/bin/datadream-studio\" \"$@\"\n"
+		}
 		shPath := filepath.Join(dest, "start-studio.sh")
 		if err := os.WriteFile(shPath, []byte(sh), 0755); err != nil {
 			return err
+		}
+		if appImage != "" {
+			rootCopy := filepath.Join(dest, filepath.Base(appImage))
+			if err := copyFileStrict(appImage, rootCopy); err != nil {
+				return err
+			}
+			return os.Chmod(rootCopy, 0755)
 		}
 		src := filepath.Join(binDir, "datadream-studio")
 		if fileExists(src) {
@@ -254,6 +303,23 @@ func writeLaunchers(dest string, skipStudio bool) error {
 		}
 	}
 	return nil
+}
+
+func findPackedAppImage(binDir string) string {
+	entries, err := os.ReadDir(binDir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := strings.ToLower(e.Name())
+		if strings.HasSuffix(name, ".appimage") && strings.Contains(name, "datadream-studio") {
+			return filepath.Join(binDir, e.Name())
+		}
+	}
+	return ""
 }
 
 func verifyDist(dest string) error {

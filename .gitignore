@@ -28,3 +28,8 @@ Thumbs.db
 tmp_debug.go
 *~
 *.exe~
+
+# Studio Linux packaging cache
+cmd/studio/build/linuxdeploy/
+cmd/studio/build/appimage/
+cmd/studio/build/bin/*.AppImage

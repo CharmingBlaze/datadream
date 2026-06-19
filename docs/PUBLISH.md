@@ -22,6 +22,10 @@ The `publish` job uploads:
 - `datadream-linux-amd64.zip`
 - `datadream-darwin-arm64.zip`
 
+Each zip includes **DataDream Studio** (desktop IDE), root launchers, and `GETTING_STARTED.txt`. End users can double-click the Studio launcher without adding anything to PATH.
+
+Use **skip_studio: true** only for smaller test artifacts.
+
 ## Option B — Tag push
 
 ```bash
@@ -53,10 +57,16 @@ Update the root README link to point at the new release URL if needed:
 
 https://github.com/CharmingBlaze/datadream/releases/latest
 
-Verify cold install:
+Verify cold install (CLI):
 
 ```bash
 datadream doctor
 datadream new my-game
 cd my-game && datadream run game.dd
 ```
+
+Verify Studio (recommended on Windows):
+
+1. Unzip the release zip.
+2. Double-click **`Start DataDream Studio.bat`** or **`DataDream Studio.exe`**.
+3. Confirm `examples/beginner/clicker.dd` opens and **Ctrl+Enter** runs it.

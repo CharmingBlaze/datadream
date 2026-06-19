@@ -7,7 +7,7 @@ Turnkey IDE included in every release zip — **extract and double-click**, no i
 | Platform | What to open |
 |----------|----------------|
 | Windows | `Start DataDream Studio.bat` or `DataDream Studio.exe` |
-| Linux | `./start-studio.sh` |
+| Linux | `./start-studio.sh` or `datadream-studio-x86_64.AppImage` |
 | macOS | `DataDream Studio.app` |
 
 See **GETTING_STARTED.txt** in the zip.
@@ -19,7 +19,8 @@ The IDE automatically finds the bundled SDK (`sdk/`), loads the editor **offline
 - DataDream Studio (Wails desktop app)
 - `datadream` CLI + Clang + raylib in `sdk/`
 - Examples under `examples/`
-- On Windows: WebView2 runtime embedded in the IDE build (`-webview2 embed`)
+- On **Windows**: WebView2 runtime embedded in the IDE build (`-webview2 embed`)
+- On **Linux**: self-contained **AppImage** with GTK + WebKit (no system packages required)
 
 ## Maintainers
 
@@ -30,6 +31,18 @@ Release builds run:
 ./scripts/build-dist.sh       # Linux / macOS
 ```
 
-This fetches Monaco (`scripts/fetch-monaco`), builds Studio with Wails, bundles Clang, and packs launchers via `tools/packdist`.
+On Linux this:
+
+1. Fetches Monaco (`scripts/fetch-monaco`)
+2. Builds Studio with Wails (`scripts/build-studio.sh`)
+3. Bundles GTK/WebKit into an AppImage (`scripts/build-studio-appimage.sh`)
+4. Packs launchers via `tools/packdist`
+
+Studio only (dev):
+
+```bash
+./scripts/build-studio.sh
+./scripts/build-studio-appimage.sh   # Linux only — after wails build
+```
 
 Skip IDE from a zip (smaller): `-SkipStudio` / `--skip-studio`

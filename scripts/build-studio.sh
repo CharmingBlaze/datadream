@@ -37,7 +37,18 @@ fi
 
 echo "Building DataDream Studio (Wails) for $PLATFORM..."
 cd "$STUDIO"
-wails build -clean -platform "$PLATFORM" -webview2 embed
+
+WAILS_ARGS=(-clean -platform "$PLATFORM")
+case "$PLATFORM" in
+  windows/*)
+    WAILS_ARGS+=(-webview2 embed)
+    ;;
+  linux/*)
+    # Ubuntu 24.04+ and CI use webkit2gtk-4.1
+    WAILS_ARGS+=(-tags webkit2_41)
+    ;;
+esac
+wails build "${WAILS_ARGS[@]}"
 
 case "$PLATFORM" in
   darwin/*)
@@ -45,6 +56,15 @@ case "$PLATFORM" in
     ;;
   windows/*)
     OUT="$STUDIO/build/bin/datadream-studio.exe"
+    ;;
+  linux/*)
+    chmod +x "$ROOT/scripts/build-studio-appimage.sh"
+    "$ROOT/scripts/build-studio-appimage.sh"
+    arch="$(uname -m)"
+    case "$arch" in
+      amd64) arch=x86_64 ;;
+    esac
+    OUT="$STUDIO/build/bin/datadream-studio-${arch}.AppImage"
     ;;
   *)
     OUT="$STUDIO/build/bin/datadream-studio"

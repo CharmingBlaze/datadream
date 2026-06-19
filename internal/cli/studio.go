@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 func cmdStudio(args []string) int {
@@ -79,6 +80,12 @@ func findStudioBinary() (path string, isMacApp bool, err error) {
 	candidates := []string{}
 	if self, e := os.Executable(); e == nil {
 		dir := filepath.Dir(self)
+		if runtime.GOOS == "linux" {
+			if p := findAppImageInDir(dir); p != "" {
+				abs, _ := filepath.Abs(p)
+				return abs, false, nil
+			}
+		}
 		candidates = append(candidates,
 			filepath.Join(dir, "datadream-studio"+exeSuffix()),
 			filepath.Join(dir, "datadream-studio.app"),
@@ -94,6 +101,14 @@ func findStudioBinary() (path string, isMacApp bool, err error) {
 		"datadream-studio"+exeSuffix(),
 		"DataDream Studio.exe",
 	)
+	if runtime.GOOS == "linux" {
+		for _, dir := range []string{"bin", filepath.Join("cmd", "studio", "build", "bin"), "."} {
+			if p := findAppImageInDir(dir); p != "" {
+				abs, _ := filepath.Abs(p)
+				return abs, false, nil
+			}
+		}
+	}
 
 	for _, c := range candidates {
 		if st, e := os.Stat(c); e == nil {
@@ -110,6 +125,23 @@ func findStudioBinary() (path string, isMacApp bool, err error) {
 	return "", false, fmt.Errorf("datadream-studio not found in bin/ — included in release zips under bin/")
 }
 
+func findAppImageInDir(dir string) string {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return ""
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := strings.ToLower(e.Name())
+		if strings.HasSuffix(name, ".appimage") && strings.Contains(name, "datadream-studio") {
+			return filepath.Join(dir, e.Name())
+		}
+	}
+	return ""
+}
+
 func exeSuffix() string {
 	if runtime.GOOS == "windows" {
 		return ".exe"
@@ -124,7 +156,8 @@ USAGE:
 
 Launch DataDream Studio — the native desktop IDE.
 
-The IDE is included in release zips as bin/datadream-studio (or datadream-studio.app on macOS).
+The IDE is included in release zips as bin/datadream-studio (Windows/macOS) or
+bin/datadream-studio-x86_64.AppImage (Linux — self-contained, no GTK/WebKit install).
 
 EXAMPLES:
   datadream studio

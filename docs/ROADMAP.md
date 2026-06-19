@@ -86,6 +86,13 @@ Status key: ✅ done · 🔄 in progress · 🟡 partial · ❌ not started
 | 37 | Regenerate `raw.dd` in CI | ✅ | `scripts/check-bindgen.*`, CI `bindgen-check` |
 | 38 | LSP / VS Code extension | 🟡 | TextMate grammar + minimal extension in `editor/datadream/`; LSP later |
 | 39 | `datadream new` project scaffold | ✅ | `internal/cli/new.go` — `game.dd`, `assets/`, README |
+| 40 | **DataDream Studio (Wails IDE)** | ✅ | `cmd/studio/`, `internal/ide/`, embedded Monaco, Wails bridge |
+| 41 | **`datadream ide` web IDE** | ✅ | `internal/ide/server.go`, port 3847 |
+| 42 | **Turnkey zip launchers** | ✅ | `packdist` → `GETTING_STARTED.txt`, `Start DataDream Studio.bat`, etc. |
+| 43 | **Offline Monaco vendor** | ✅ | `scripts/fetch-monaco.*`, `internal/ide/web/vendor/` |
+| 44 | **Release workflow includes Studio** | ✅ | `release.yml`; CI dist-verify uses `--skip-studio` |
+| 45 | **Studio smoke test in verify-dist** | ❌ | Manual only today |
+| 46 | **README / release notes Studio-first** | 🟡 | Still CLI-first in README and release body |
 
 ---
 
@@ -162,6 +169,10 @@ Status key: ✅ done · 🔄 in progress · 🟡 partial · ❌ not started
 - ✅ Selective `use raylib { InitWindow, … }` with typecheck whitelist
 - ✅ Fixed `isRaylibSymbol` for PascalCase API names (`InitWindow`, etc.)
 - ✅ Windows dist zip built + cold-install verified locally
+- ✅ **DataDream Studio** — Wails desktop IDE, web IDE, embedded Monaco, turnkey launchers
+- ✅ **Linux Studio AppImage** — self-contained GTK/WebKit via `build-studio-appimage.sh`
+- ✅ Selective `use raylib { … }` (`hello_selective.dd`)
+- ✅ Code pushed to `main` (June 2026)
 
 ---
 
@@ -176,6 +187,7 @@ Ship when **all** are true:
 5. Docs in `docs/` match reality
 6. Bindgen regenerates raylib without manual edits
 7. GitHub release zips published for all three platforms — **workflow ready**; run [PUBLISH.md](PUBLISH.md) to attach assets to v1.0.0
+8. **Studio launcher works from release zip** — double-click → run sample (manual smoke test until verify-dist extended)
 
 ---
 
@@ -183,11 +195,12 @@ Ship when **all** are true:
 
 | Priority | Task | Status |
 |----------|------|--------|
-| P2 | `@packed` full SoA entity codegen | ✅ |
-| P2 | `@save` serialize/deserialize | ✅ |
-| P2 | Codegen diagnostics through hint pipeline | ✅ |
+| P0 | Publish v1.0 GitHub Release | 🔄 |
+| P0 | Studio smoke test from release zip | 🔄 |
+| P0.5 | README + release notes Studio-first | 🟡 |
+| P0.5 | `verify-dist` Studio binary check | ❌ |
+| P2 | Parser/lexer hint edge cases | 🟡 |
 | P4 | LSP (hover, go-to-def) | ❌ |
-| P5 | Selective `use raylib { InitWindow, … }` | ✅ |
 | P5 | `match` type patterns (beyond struct fields) | ❌ |
 
 ---

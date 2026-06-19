@@ -342,7 +342,7 @@ jobs:
 
             | Windows | `bin/datadream-studio.exe` |
 
-            | Linux | `bin/datadream-studio` |
+            | Linux | `bin/datadream-studio-x86_64.AppImage` (self-contained) |
 
             | macOS | `bin/datadream-studio.app` |
 

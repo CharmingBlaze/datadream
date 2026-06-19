@@ -21,12 +21,14 @@ datadream/                      ← DATADREAM_ROOT
     datadream.exe               ← Windows CLI
     datadream                   ← Linux/macOS CLI
     datadream-studio.exe        ← Windows IDE (Wails)
-    datadream-studio            ← Linux IDE
+    datadream-studio            ← Linux IDE (raw binary, dev only)
+    datadream-studio-x86_64.AppImage  ← Linux IDE (release — self-contained)
     datadream-studio.app/       ← macOS IDE bundle
   GETTING_STARTED.txt           ← one-page quick start (also at root)
   Start DataDream Studio.bat    ← Windows double-click launcher
   DataDream Studio.exe          ← Windows IDE (root copy)
-  start-studio.sh               ← Linux launcher
+  start-studio.sh               ← Linux launcher (runs AppImage)
+  datadream-studio-x86_64.AppImage  ← Linux IDE (root copy)
   DataDream Studio.app/         ← macOS launcher copy (optional)
   sdk/
     manifest.json

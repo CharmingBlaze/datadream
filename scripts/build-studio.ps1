@@ -54,7 +54,11 @@ Ensure-AppIcon -StudioDir $studio
 
 Push-Location $studio
 try {
-    wails build -clean -platform $Platform -webview2 embed
+    $wailsArgs = @("build", "-clean", "-platform", $Platform)
+    if ($Platform -match '^windows/') {
+        $wailsArgs += "-webview2", "embed"
+    }
+    wails @wailsArgs
     $built = Join-Path $studio "build\bin\datadream-studio.exe"
     if ($Platform -notmatch '^windows/') {
         $built = Join-Path $studio "build\bin\datadream-studio"

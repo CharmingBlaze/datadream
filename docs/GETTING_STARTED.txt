@@ -12,7 +12,10 @@ Everything you need is in this folder. **No Go, Python, or extra installs.**
 
 1. Unzip the download.
 2. Run: `chmod +x start-studio.sh && ./start-studio.sh`
+   Or double-click / run **`datadream-studio-x86_64.AppImage`** directly.
 3. Press **Ctrl+Enter** to run code.
+
+No GTK or WebKit install required — the AppImage bundles everything.
 
 ## macOS
 
@@ -24,7 +27,7 @@ Everything you need is in this folder. **No Go, Python, or extra installs.**
 
 | Component | Location |
 |-----------|----------|
-| IDE (Studio) | Root launcher or `bin/datadream-studio` |
+| IDE (Studio) | Root launcher or `bin/` (AppImage on Linux) |
 | Compiler CLI | `bin/datadream` |
 | Clang + raylib SDK | `sdk/` |
 | Examples | `examples/` |

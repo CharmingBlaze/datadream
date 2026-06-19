@@ -1,8 +1,8 @@
 # Handoff — DataDream Language Development
 
 **For:** the next programmer or agent session picking up this repo  
-**Last updated:** June 2026  
-**Compiler:** 0.1.0 · **raylib:** 6.0 · **Progress:** ~**98% v1-complete** — language, tooling, and all 24 examples build; **ship gate:** GitHub Release v1.0.0 ([PUBLISH.md](PUBLISH.md))
+**Last updated:** June 2026 (post-Studio + turnkey packaging push to `main`)  
+**Compiler:** 0.1.0 · **raylib:** 6.0 · **Progress:** ~**99% v1-complete** — language, tooling, Studio IDE, and all **25** examples build; **ship gate:** publish GitHub Release v1.0.0 ([PUBLISH.md](PUBLISH.md))
 
 ---
 
@@ -10,11 +10,11 @@
 
 DataDream is a **Go compiler** that turns `.dd` source into **C**, then links with **bundled Clang + raylib 6.0** to produce a native binary. End users never need Go.
 
-**What works today:** full friendly Layer 4 API, ECS (Layer 5), raw raylib interop (~548 functions), type checker with hints, growable `Array<T>` with `for x in array`, entity iteration, module exports, frame/level arenas, release packaging for Win/Linux/macOS, `datadream new`, VS Code grammar.
+**What works today:** full friendly Layer 4 API, ECS (Layer 5), raw raylib interop (~548 functions), type checker with hints, growable `Array<T>` with `for x in array`, entity iteration, module exports, selective `use raylib { … }`, frame/level arenas, **DataDream Studio** (Wails desktop IDE + `datadream ide` web server), offline Monaco editor, turnkey release zips with root launchers, `datadream new`, VS Code grammar.
 
-**Primary blocker for v1.0 ship:** publish the GitHub Release (workflow is ready; maintainer runs [PUBLISH.md](PUBLISH.md)).
+**Primary blocker for v1.0 ship:** publish the GitHub Release — workflow is ready; maintainer runs [PUBLISH.md](PUBLISH.md) and verifies Studio launchers in each zip.
 
-**Primary language gaps (post-ship):** LSP, selective `use raylib { … }`, codegen hints at every error site (infrastructure done).
+**Primary gaps (post-ship):** LSP, automated Studio smoke test in `verify-dist`, README quick start still CLI-first.
 
 ---
 
@@ -53,7 +53,20 @@ datadream build examples/raylib/hello_friendly.dd -o hello
 .\scripts\verify-dist.ps1 dist\datadream-windows-amd64.zip
 ```
 
-Cold-install on Windows with bundled Clang (~188 MB zip) is verified: extract → `doctor` ✓ → `run hello_friendly` with no system compiler on PATH. Linux/macOS cold-install verified via CI `dist-verify`.
+Cold-install on Windows with bundled Clang (~188 MB zip) is verified: extract → `doctor` ✓ → `run hello_friendly` with no system compiler on PATH. Linux/macOS cold-install verified via CI `dist-verify` (CI skips Studio build; release workflow builds Studio).
+
+**Studio smoke test (maintainers, after `build-dist`):**
+
+```powershell
+# Windows — after build-dist.ps1
+.\dist\...\Start DataDream Studio.bat   # or root DataDream Studio.exe in zip tree
+# Expect: IDE opens, clicker.dd loads, Ctrl+Enter runs
+```
+
+```bash
+./scripts/build-studio.sh              # dev build only
+datadream studio examples/beginner     # from repo root with built binary in bin/
+```
 
 ---
 
@@ -61,12 +74,25 @@ Cold-install on Windows with bundled Clang (~188 MB zip) is verified: extract �
 
 ### Compiler & distribution
 - ✅ `cmd/datadream/main.go` → `internal/cli.Run`
-- ✅ CI: `go test`, example builds, bindgen-check, dist-verify (Win/Linux/macOS)
+- ✅ CI: `go test`, example builds, bindgen-check, dist-verify (Win/Linux/macOS; **`--skip-studio`** in CI)
 - ✅ `scripts/build-dist.ps1` / `build-dist.sh` + `packdist --verify`
-- ✅ `.github/workflows/release.yml` — publish zips to GitHub Release
+- ✅ `.github/workflows/release.yml` — publish zips to GitHub Release **with Studio** (GTK/WebKit on Linux runner)
 - ✅ Windows cold-install with bundled llvm-mingw
 - ✅ `datadream new` — scaffold `game.dd`, `assets/`, README
 - ✅ VS Code extension + TextMate grammar (`syntaxes/`, `editor/datadream/`)
+
+### DataDream Studio (IDE)
+- ✅ **`datadream studio`** — Wails desktop app (`cmd/studio/`, `internal/cli/studio.go`)
+- ✅ **`datadream ide`** — embedded HTTP IDE (`internal/ide/server.go`, port 3847)
+- ✅ Shared backend: `internal/ide/service.go` (tree, read/write, check, build, run, doctor)
+- ✅ Frontend: `internal/ide/web/` — Monaco, file tree, corporate dark theme, Wails bridge in `app.js`
+- ✅ **Offline Monaco** — vendored under `internal/ide/web/vendor/monaco/` via `scripts/fetch-monaco.*`
+- ✅ **`DATADREAM_ROOT` auto-detect** — `internal/ide/root.go` from install layout (`sdk/manifest.json`)
+- ✅ **Turnkey launchers** — `packdist` writes `GETTING_STARTED.txt`, `Start DataDream Studio.bat`, `start-studio.sh`, root IDE copies ([DISTRIBUTION.md](DISTRIBUTION.md), [STUDIO.md](STUDIO.md))
+- ✅ Windows WebView2 embedded (`wails build -webview2 embed`)
+- 🟡 **Release CI not yet run end-to-end** — first `v1.0.0` workflow may surface Wails/macOS deps issues
+- ✅ **Linux AppImage** — GTK + WebKit bundled via `scripts/build-studio-appimage.sh` (no system install)
+- ❌ **`verify-dist` does not launch Studio** — only doctor + hello + coin-runner builds
 
 ### Language core (Layer 1)
 - ✅ `let`, `fn`, `if`/`else`, `while`, **`loop`**, **`for i in 0..n` / `0..=n`**, **`match`**, **`defer`**, `break`, `continue`, `return`
@@ -99,8 +125,9 @@ Key files: `internal/ast/ast.go` (`IterKind`), `internal/typecheck/forin.go`, `i
 
 ### Raw raylib (Layer 2)
 - ✅ `use raylib;` + `libs/raylib/raw.dd` (~548 functions)
+- ✅ **Selective import** — `use raylib { InitWindow, DrawText };` (`hello_selective.dd`, `typecheck/selective.go`)
 - ✅ `datadream bind` from headers
-- ✅ `hello_raw.dd`, `hello_using.dd`, **`hello_3d.dd`**
+- ✅ `hello_raw.dd`, `hello_using.dd`, **`hello_3d.dd`**, **`hello_selective.dd`**
 
 ### Friendly API (Layer 4)
 | Namespace | Codegen |
@@ -133,7 +160,8 @@ Living reference: `examples/raylib/commands.dd`.
 - ✅ **`internal/errors/`** — Rust-style snippet + caret + hint
 - ✅ Lex/parse diagnostics with hints (`compiler/diagnostics.go`)
 - ✅ **Warnings** — typecheck warnings do not fail `check`/`compile` (`Diagnostic.Warning`, yellow output)
-- 🟡 Codegen-stage errors still mostly bare strings
+- ✅ Codegen-stage errors use hint pipeline (`codegen/diagnostic.go`)
+- 🟡 Parser/lexer hint coverage — edge cases remain
 
 ### Attributes
 - ✅ **`@packed` entity** — SoA pool (`EntityPool` + `idx` handle), field access via pool arrays
@@ -141,7 +169,7 @@ Living reference: `examples/raylib/commands.dd`.
 
 ---
 
-## Examples (24 `.dd` files)
+## Examples (25 `.dd` files)
 
 All core examples pass `datadream check --codegen`. CI builds on Linux + macOS.
 
@@ -166,6 +194,7 @@ examples/raylib/graphics_module.dd
 examples/raylib/hello_3d.dd
 examples/raylib/hello_friendly.dd
 examples/raylib/hello_raw.dd
+examples/raylib/hello_selective.dd
 examples/raylib/hello_using.dd
 examples/raylib/match_destruct.dd
 examples/raylib/string_for_in.dd
@@ -181,12 +210,25 @@ examples/raylib/ui_demo.dd
 | Task | Status | Acceptance |
 |------|--------|------------|
 | Windows bundled-Clang zip | ✅ | `build-dist.ps1` + cold PATH test |
-| Linux/macOS dist-verify | ✅ | CI `dist-verify` job |
+| Linux/macOS dist-verify | ✅ | CI `dist-verify` job (no Studio) |
 | CI on every push/PR | ✅ | `.github/workflows/ci.yml` |
-| GitHub release workflow | ✅ | `.github/workflows/release.yml` |
-| **Publish v1.0 Release** | 🔄 | Follow [PUBLISH.md](PUBLISH.md) — tag `v1.0.0`, attach three zips |
+| GitHub release workflow + Studio | ✅ | `.github/workflows/release.yml` |
+| Code on `main` | ✅ | Pushed June 2026 |
+| **Run release workflow** | 🔄 | [PUBLISH.md](PUBLISH.md) — tag `v1.0.0`, all three zips |
+| **Verify Studio in release zips** | 🔄 | Unzip → double-click launcher → run `clicker.dd` (Win first) |
+| **Fix release build if CI fails** | ❓ | Wails on Linux/macOS; macOS may need ImageMagick/npm in workflow |
 
 Do not start large new language features until P0 is signed off or explicitly deprioritized.
+
+### P0.5 — Turnkey UX polish (right after first release)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| README quick start → Studio-first | 🟡 | Root README still leads with CLI + PATH |
+| Release notes body → Studio-first | 🟡 | `release.yml` publish body still CLI-first |
+| `verify-dist` includes Studio binary check | ❌ | At least assert `bin/datadream-studio*` exists when not `--skip-studio` |
+| `build-studio.sh` platform flags | ✅ | `-webview2 embed` Windows only; `-tags webkit2_41` on Linux |
+| Linux AppImage (optional) | ✅ | `build-studio-appimage.sh` + packdist launchers |
 
 ### P1 — Friendly game layer
 
@@ -216,11 +258,13 @@ Do not start large new language features until P0 is signed off or explicitly de
 |------|--------|-------|
 | `datadream new` | ✅ | `internal/cli/new.go` |
 | VS Code / TextMate grammar | ✅ | `syntaxes/`, `editor/datadream/` |
-| **LSP** (hover, go-to-def) | ❌ | After grammar; optional for v1.1 |
+| **DataDream Studio (desktop IDE)** | ✅ | `cmd/studio/`, Wails, embedded Monaco |
+| **`datadream ide` (web IDE)** | ✅ | `internal/ide/`, for dev / fallback |
+| Turnkey zip launchers | ✅ | `packdist` + `GETTING_STARTED.txt` |
+| **LSP** (hover, go-to-def) | ❌ | After grammar; v1.1 |
 
 ### P5 — Polish (later)
 
-- Selective `use raylib { InitWindow, DrawText }`
 - `match` type patterns (beyond struct destructuring)
 - Entity array demo with `.dead` + `.remove_dead()` in a real game loop
 - String iteration: codepoint/grapheme (v1 is byte-only by design)
@@ -276,8 +320,14 @@ lexer (usually nothing)
 
 ```
 cmd/datadream/main.go              CLI entry
-internal/cli/                      run, build, check, bind, doctor, sdk, new
+cmd/studio/                        Wails desktop IDE (build with wails build, not go build)
+internal/cli/                      run, build, check, bind, doctor, sdk, new, ide, studio
 internal/cli/diagnostics.go        Errors + warnings formatting
+internal/ide/
+  service.go                       Shared IDE API (tree, read, write, check, build, run)
+  server.go                        HTTP server for datadream ide
+  root.go                          DATADREAM_ROOT / distribution layout detection
+  web/                             Embedded frontend + vendor/monaco/
 internal/lexer/lexer.go            Tokens, IsBindingName, 0..=, ||/&&
 internal/parser/                   loop, defer, match, entity methods, list T sugar
 internal/ast/ast.go                ForInStmt, IterKind, AST nodes
@@ -301,8 +351,11 @@ internal/compiler/
   pipeline.go                      Check, Compile; warnings don't block
   typecheck_phase.go               Maps typecheck errors/warnings
   modules_export.go                export fn / export let filter
-tools/packdist/                    Release zip + --verify
-scripts/build-dist.ps1             Windows dist (bundled Clang)
+tools/packdist/                    Release zip + --verify + launchers
+scripts/build-dist.ps1             Windows dist (bundled Clang + Studio)
+scripts/build-studio.sh           Wails Studio only
+scripts/build-studio-appimage.sh  Linux AppImage (bundles GTK/WebKit)
+scripts/fetch-monaco.ps1           Vendor Monaco for offline IDE
 libs/raylib/raw.dd                 Generated — run check-bindgen to refresh
 ```
 
@@ -324,6 +377,10 @@ libs/raylib/raw.dd                 Generated — run check-bindgen to refresh
 | 10 | **`c` is a keyword** | C interop — do not use `for c in "hello"`; use `ch` or `byte` |
 | 11 | Array remove during loop | Warning only — use `.dead` + `.remove_dead()` after loop |
 | 12 | Struct elements in `for x in arr` | Binding is **pointer** — mutations apply in place |
+| 13 | **Studio build** | Use `wails build` via `scripts/build-studio.*` — plain `go build ./cmd/studio` fails (build tags) |
+| 14 | **Wails vendor** | Studio builds use `GOFLAGS=-mod=mod` (root `vendor/` is raylib headers only) |
+| 15 | **CI vs release** | CI `dist-verify` uses `--skip-studio`; full IDE only in release workflow |
+| 16 | **Monaco in repo** | Large vendor tree under `internal/ide/web/vendor/` — `fetch-monaco` runs in `build-dist` |
 
 ---
 
@@ -333,21 +390,24 @@ libs/raylib/raw.dd                 Generated — run check-bindgen to refresh
 
 Audio/ui demos, type checker, all examples, CI on Linux + macOS.
 
-### v1.0 — gate (one step left)
+### v1.0 — gate (two steps left)
 
 - [x] Fresh zip → `doctor` ✓ → `run hello_friendly` (Win/Linux/macOS)
 - [x] `coin-runner` builds with assets
-- [x] `hello_raw` + `hello_3d` build
-- [x] All examples pass `check --codegen`; CI builds
+- [x] `hello_raw` + `hello_3d` + `hello_selective` build
+- [x] All 25 examples pass `check --codegen`; CI builds
 - [x] bindgen-check keeps `raw.dd` in sync
-- [x] Docs match reality
+- [x] Docs match reality (Studio, GETTING_STARTED, DISTRIBUTION)
+- [x] Studio IDE + turnkey launchers in packdist
 - [ ] **GitHub v1.0 Release published** — [PUBLISH.md](PUBLISH.md)
+- [ ] **Studio smoke-tested from release zip** (double-click launcher)
 
 ### v1.1 — suggested next
 
 - LSP basics
-- `@packed` / `@save` production-ready
-- Codegen diagnostics through hint pipeline
+- `verify-dist` Studio checks
+- README / release notes Studio-first
+- Linux AppImage (optional)
 
 ---
 
@@ -366,6 +426,12 @@ cd examples/coin-runner && ../../datadream build game.dd -o coin-runner
 datadream bind sdk/raylib/6.0/include/raylib.h --raw --out libs/raylib/raw.dd
 ./scripts/check-bindgen.sh
 ./scripts/build-all-examples.sh
+
+# Studio (maintainers)
+./scripts/fetch-monaco.sh
+./scripts/build-studio.sh
+datadream studio examples/beginner
+datadream ide --port 3847
 ```
 
 ---
@@ -391,6 +457,8 @@ datadream bind sdk/raylib/6.0/include/raylib.h --raw --out libs/raylib/raw.dd
 | [NEXT_SESSION_PROMPT.md](NEXT_SESSION_PROMPT.md) | **Paste into a new agent chat** |
 | [ROADMAP.md](ROADMAP.md) | Task status table |
 | [PUBLISH.md](PUBLISH.md) | Release v1.0 step-by-step |
+| [STUDIO.md](STUDIO.md) | Desktop IDE — end users + maintainers |
+| [GETTING_STARTED.txt](GETTING_STARTED.txt) | One-page quick start (copied into release zip) |
 | [DESIGN.md](DESIGN.md) | Full design map, v1 target program |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Pipeline and package layout |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Feature addition checklist |
